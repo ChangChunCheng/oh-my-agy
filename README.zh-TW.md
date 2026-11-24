@@ -57,16 +57,7 @@
 agy plugin install https://github.com/ChangChunCheng/oh-my-agy
 ```
 
-或從本機 clone 安裝：
-
-```
-git clone https://github.com/ChangChunCheng/oh-my-agy.git
-cd oh-my-agy
-agy plugin install ./plugins/oh-my-status
-agy plugin install ./plugins/oh-my-knowledge
-```
-
-用 `agy plugin list` 確認安裝結果。安裝前要先檢查 clone 的內容，可執行 `agy plugin validate ./plugins/oh-my-status`（`oh-my-knowledge` 同理）。
+用 `agy plugin list` 確認安裝結果。
 
 ## 首次使用
 

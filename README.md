@@ -57,16 +57,7 @@ Install both plugins in one command:
 agy plugin install https://github.com/ChangChunCheng/oh-my-agy
 ```
 
-Or install from a local clone:
-
-```
-git clone https://github.com/ChangChunCheng/oh-my-agy.git
-cd oh-my-agy
-agy plugin install ./plugins/oh-my-status
-agy plugin install ./plugins/oh-my-knowledge
-```
-
-Check the result with `agy plugin list`. To validate a clone before installing, run `agy plugin validate ./plugins/oh-my-status` (and the same for `oh-my-knowledge`).
+Check the result with `agy plugin list`.
 
 ## First steps
 

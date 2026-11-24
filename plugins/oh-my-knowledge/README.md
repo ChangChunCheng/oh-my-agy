@@ -8,7 +8,7 @@ This is the agy port of `oh-my-knowledge` from oh-my-claude.
 
 ## Quick Start
 
-1. Install the plugin (`agy plugin install` from this repository, or copy `plugins/oh-my-knowledge` into a plugins folder).
+1. Install both plugins (oh-my-status and oh-my-knowledge) in one command: `agy plugin install https://github.com/ChangChunCheng/oh-my-agy`.
 2. Ask the agent to run the `kb-setup` skill (for example "set up the knowledge base"). It shows the settings, creates the knowledge base (default `~/knowledge`) or recognises an existing one, commits the skeleton, and offers to add the rules include to `~/.gemini/GEMINI.md` (it always asks first and backs the file up).
 3. Start a new conversation: hooks and the session-start note pick the knowledge base up.
 

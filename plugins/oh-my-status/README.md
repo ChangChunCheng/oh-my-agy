@@ -13,7 +13,13 @@ A themeable statusline for Antigravity CLI (`agy`) with 9 color themes and 6 lay
 
 ## Install
 
-Install the plugin (see the Antigravity CLI plugin docs), then run:
+Install both plugins (oh-my-status and oh-my-knowledge) in one command:
+
+```
+agy plugin install https://github.com/ChangChunCheng/oh-my-agy
+```
+
+Then run:
 
 ```
 /status-setup
