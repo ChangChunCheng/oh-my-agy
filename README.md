@@ -51,7 +51,13 @@ A local, git-versioned knowledge base. Durable knowledge (decisions and their re
 
 ## Installation
 
-Clone the repository and install each plugin from its folder:
+Install both plugins in one command:
+
+```
+agy plugin install https://github.com/ChangChunCheng/oh-my-agy
+```
+
+Or install from a local clone:
 
 ```
 git clone https://github.com/ChangChunCheng/oh-my-agy.git

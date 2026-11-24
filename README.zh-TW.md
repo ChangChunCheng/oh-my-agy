@@ -51,7 +51,13 @@
 
 ## 安裝
 
-先 clone 本儲存庫，再從各外掛的資料夾安裝：
+一行指令同時安裝兩個外掛：
+
+```
+agy plugin install https://github.com/ChangChunCheng/oh-my-agy
+```
+
+或從本機 clone 安裝：
 
 ```
 git clone https://github.com/ChangChunCheng/oh-my-agy.git
