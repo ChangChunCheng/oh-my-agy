@@ -127,7 +127,7 @@ end_test
 
 start_test "plugin.json / hooks.json manifest: no userConfig, agy hooks shape, defaults documented in kb-setup == omk_config defaults"
 assert_eq "oh-my-knowledge" "$(jq -r .name "$PJ" | tr -d '\r')" "name"
-assert_eq "1.0.0" "$(jq -r .version "$PJ" | tr -d '\r')" "version"
+assert_eq "1.0.0-rc.0" "$(jq -r .version "$PJ" | tr -d '\r')" "version"
 assert_eq "false" "$(jq 'has("userConfig")' "$PJ" | tr -d '\r')" "no userConfig (agy has none)"
 assert_eq "ChangChunCheng" "$(jq -r .author.name "$PJ" | tr -d '\r')" "author"
 assert_eq "assets/logo.svg" "$(jq -r .logo "$PJ" | tr -d '\r')" "logo"

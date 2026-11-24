@@ -81,3 +81,7 @@ agy reports quota buckets such as `gemini-5h`, `gemini-weekly`, `3p-5h` and `3p-
 - `themes/`, `layouts/`: the color palettes and the render functions
 - `oh-my-status.conf`: the config template
 - Tests: `tests/status/run.sh` at the repository root
+
+## License
+
+MIT

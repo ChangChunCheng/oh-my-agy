@@ -45,7 +45,7 @@ A local, git-versioned knowledge base. Durable knowledge (decisions and their re
 - `agy` (Antigravity CLI)
 - bash 3.2+ (bash 5 recommended)
 - `jq` 1.7+
-- `git`
+- `git` 2.31+
 - For **oh-my-knowledge** lint and search: `gawk` and GNU `find`. On macOS: `brew install gawk findutils` and put the GNU `find` first on `PATH`.
 - A Nerd Font for the icon layouts (the `pure` layout needs none)
 

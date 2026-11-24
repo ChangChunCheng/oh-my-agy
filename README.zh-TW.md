@@ -45,7 +45,7 @@
 - `agy`（Antigravity CLI）
 - bash 3.2 以上（建議 bash 5）
 - `jq` 1.7 以上
-- `git`
+- `git` 2.31 以上
 - **oh-my-knowledge** 的 lint 與搜尋需要 `gawk` 與 GNU `find`。macOS 請執行 `brew install gawk findutils`，並把 GNU `find` 放在 `PATH` 前面。
 - 圖示版型需要 Nerd Font（`pure` 版型不需要）
 
