@@ -1,0 +1,12 @@
+# OS and editor junk
+.DS_Store
+Thumbs.db
+*.swp
+*~
+.idea/
+.vscode/
+
+# Local backups and temp files
+*.bak
+*.tmp
+*.tmp.*

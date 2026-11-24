@@ -1,0 +1,49 @@
+# Powerline layout - arrow separators with background colors
+# Uses powerline arrow character for segment separation
+
+RESET='\033[0m'
+
+# Powerline arrow (requires Nerd Font)
+ARROW=$'\xee\x82\xb0'
+
+pct_color() {
+  local pct=${1:-0}
+  if [ "$pct" -le 30 ]; then REPLY=$C_GREEN
+  elif [ "$pct" -le 80 ]; then REPLY=$C_YELLOW
+  else REPLY=$C_RED
+  fi
+}
+
+render() {
+  local BRANCH_ICON=$'\xee\x82\xa0'
+
+  # Segment 1: Model
+  local LINE="${C_PRIMARY} ${MODEL} ${RESET}"
+  LINE+="${C_PRIMARY}${ARROW}${RESET} "
+  [ -n "$ACCOUNT" ] && LINE+="${C_SUBTEXT} ${ACCOUNT_ICON:+$ACCOUNT_ICON }${ACCOUNT} ${RESET}${C_SUBTEXT}${ARROW}${RESET} "
+
+  # Segment 2: Directory
+  LINE+="${C_SECONDARY} ${DIR} ${RESET}"
+  LINE+="${C_SECONDARY}${ARROW}${RESET} "
+
+  # Segment 3: Git
+  if [ -n "$BRANCH" ]; then
+    local GIT_SEG="${BRANCH_ICON} ${BRANCH}"
+    [ "$ADD_FILES" -gt 0 ] 2>/dev/null && GIT_SEG+=" +${ADD_FILES}"
+    [ "$MOD_FILES" -gt 0 ] 2>/dev/null && GIT_SEG+=" ~${MOD_FILES}"
+    [ "$DEL_FILES" -gt 0 ] 2>/dev/null && GIT_SEG+=" -${DEL_FILES}"
+    LINE+="${C_ACCENT} ${GIT_SEG} ${RESET}"
+    LINE+="${C_ACCENT}${ARROW}${RESET} "
+  fi
+
+  # Segment 4: Usage stats
+  local STATS=""
+  STATS+="ctx:${CTX_PCT:-0}%"
+  [ -n "${RATE5_PCT:-}" ] && STATS+=" 5h:${RATE5_PCT}%"
+  [ -n "${RATE7_PCT:-}" ] && STATS+=" 7d:${RATE7_PCT}%"
+  pct_color "${CTX_PCT:-0}"; LINE+="${REPLY} ${STATS} ${RESET}"
+
+  # Extras (cycle mode / cost / tasks), after the bars: they also use REPLY.
+  oma_extras; [ -n "$REPLY" ] && LINE+="  $REPLY"
+  echo -e "$LINE"
+}

@@ -1,0 +1,27 @@
+{
+  "$schema": "https://antigravity.google/schemas/v1/plugin.json",
+  "name": "oh-my-status",
+  "displayName": "Oh My Status",
+  "version": "1.0.0",
+  "description": "Themeable statusline for Antigravity CLI with 9 color themes, 6 layouts, cached git stats, context and quota meters.",
+  "logo": "assets/logo.svg",
+  "suggestedPrompts": [
+    "Set up the oh-my-status statusline in my CLI settings",
+    "Preview all available statusline themes and layouts",
+    "Switch my statusline to the tokyonight theme with fancy layout"
+  ],
+  "author": {
+    "name": "ChangChunCheng",
+    "url": "https://github.com/ChangChunCheng"
+  },
+  "homepage": "https://github.com/ChangChunCheng/oh-my-agy",
+  "repository": "https://github.com/ChangChunCheng/oh-my-agy",
+  "license": "MIT",
+  "keywords": [
+    "statusline",
+    "theme",
+    "layout",
+    "cli",
+    "git"
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "oh-my-status-sync": {
+    "SessionStart": [
+      {
+        "type": "command",
+        "command": "bash ./scripts/setup.sh --hook",
+        "timeout": 10
+      }
+    ]
+  }
+}

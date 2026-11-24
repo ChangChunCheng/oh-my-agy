@@ -1,0 +1,26 @@
+{
+  "$schema": "https://antigravity.google/schemas/v1/plugin.json",
+  "name": "oh-my-knowledge",
+  "displayName": "Oh My Knowledge",
+  "version": "1.0.0",
+  "description": "A local, git-versioned knowledge base for Antigravity CLI: look up, distill, lint and hand off durable knowledge instead of letting it rot in project memory.",
+  "logo": "assets/logo.svg",
+  "suggestedPrompts": [
+    "Set up the oh-my-knowledge knowledge base",
+    "Look up what the knowledge base says about this error",
+    "Distill this session's durable knowledge into the knowledge base"
+  ],
+  "author": {
+    "name": "ChangChunCheng",
+    "url": "https://github.com/ChangChunCheng"
+  },
+  "homepage": "https://github.com/ChangChunCheng/oh-my-agy",
+  "repository": "https://github.com/ChangChunCheng/oh-my-agy",
+  "license": "MIT",
+  "keywords": [
+    "knowledge-base",
+    "memory",
+    "wiki",
+    "handoff"
+  ]
+}
