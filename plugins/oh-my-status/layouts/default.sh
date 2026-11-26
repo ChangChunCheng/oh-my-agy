@@ -44,11 +44,26 @@ render() {
   fi
 
   bar "${CTX_PCT:-0}" 15; local LINE2=$REPLY
-  if [ -n "${RATE5_PCT:-}" ]; then bar "$RATE5_PCT" 15; LINE2+="  ${REPLY}${RATE5_SUFFIX}"; fi
-  if [ -n "${RATE7_PCT:-}" ]; then bar "$RATE7_PCT" 15; LINE2+="  ${REPLY}${RATE7_SUFFIX}"; fi
+  local LINE3=""
+  if [ "${QUOTA_ALL:-0}" = 1 ]; then
+    LINE2="${C_SUBTEXT}ctx${RESET} ${LINE2}"
+    local i qseg p5 p7 bw=15
+    [ "${QUOTA_COUNT:-0}" -gt 1 ] && bw=8
+    for ((i=0; i<${QUOTA_COUNT:-0}; i++)); do
+      qseg="${C_SUBTEXT}${QUOTA_FAMILIES[i]}${RESET}"
+      p5=${QUOTA_5H_PCT[i]}; p7=${QUOTA_7D_PCT[i]}
+      if [ -n "$p5" ]; then bar "$p5" "$bw"; qseg+=" ${C_SUBTEXT}5h${RESET} ${REPLY}${QUOTA_5H_SUFFIX[i]}"; fi
+      if [ -n "$p7" ]; then bar "$p7" "$bw"; qseg+=" ${C_SUBTEXT}7d${RESET} ${REPLY}${QUOTA_7D_SUFFIX[i]}"; fi
+      LINE3="${LINE3:+${LINE3} ${C_SUBTEXT}|${RESET} }${qseg}"
+    done
+  else
+    if [ -n "${RATE5_PCT:-}" ]; then bar "$RATE5_PCT" 15; LINE2+="  ${REPLY}${RATE5_SUFFIX}"; fi
+    if [ -n "${RATE7_PCT:-}" ]; then bar "$RATE7_PCT" 15; LINE2+="  ${REPLY}${RATE7_SUFFIX}"; fi
+  fi
 
   # Extras (cycle mode / cost / tasks), after the bars: they also use REPLY.
   oma_extras; [ -n "$REPLY" ] && LINE2+="  $REPLY"
   echo -e "$LINE1"
   echo -e "$LINE2"
+  [ -n "$LINE3" ] && echo -e "$LINE3"
 }

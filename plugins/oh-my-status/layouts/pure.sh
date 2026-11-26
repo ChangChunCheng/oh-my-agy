@@ -29,8 +29,19 @@ render() {
   fi
 
   pct_indicator "${CTX_PCT:-0}" ctx; LINE+="  ${REPLY}"
-  if [ -n "${RATE5_PCT:-}" ]; then pct_indicator "$RATE5_PCT" 5h; LINE+="  ${REPLY}"; fi
-  if [ -n "${RATE7_PCT:-}" ]; then pct_indicator "$RATE7_PCT" 7d; LINE+="  ${REPLY}"; fi
+  if [ "${QUOTA_ALL:-0}" = 1 ]; then
+    local i qseg p5 p7
+    for ((i=0; i<${QUOTA_COUNT:-0}; i++)); do
+      qseg="${C_SUBTEXT}${QUOTA_FAMILIES[i]}${RESET}"
+      p5=${QUOTA_5H_PCT[i]}; p7=${QUOTA_7D_PCT[i]}
+      if [ -n "$p5" ]; then pct_indicator "$p5" 5h; qseg+=" ${REPLY}"; fi
+      if [ -n "$p7" ]; then pct_indicator "$p7" 7d; qseg+=" ${REPLY}"; fi
+      LINE+="  ${qseg}"
+    done
+  else
+    if [ -n "${RATE5_PCT:-}" ]; then pct_indicator "$RATE5_PCT" 5h; LINE+="  ${REPLY}"; fi
+    if [ -n "${RATE7_PCT:-}" ]; then pct_indicator "$RATE7_PCT" 7d; LINE+="  ${REPLY}"; fi
+  fi
 
   # Extras (cycle mode / cost / tasks), after the bars: they also use REPLY.
   oma_extras; [ -n "$REPLY" ] && LINE+="  $REPLY"

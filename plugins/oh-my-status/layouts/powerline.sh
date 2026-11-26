@@ -39,8 +39,19 @@ render() {
   # Segment 4: Usage stats
   local STATS=""
   STATS+="ctx:${CTX_PCT:-0}%"
-  [ -n "${RATE5_PCT:-}" ] && STATS+=" 5h:${RATE5_PCT}%"
-  [ -n "${RATE7_PCT:-}" ] && STATS+=" 7d:${RATE7_PCT}%"
+  if [ "${QUOTA_ALL:-0}" = 1 ]; then
+    local i p5 p7 qseg
+    for ((i=0; i<${QUOTA_COUNT:-0}; i++)); do
+      p5=${QUOTA_5H_PCT[i]}; p7=${QUOTA_7D_PCT[i]}
+      qseg="${QUOTA_FAMILIES[i]}"
+      [ -n "$p5" ] && qseg+=" 5h:${p5}%"
+      [ -n "$p7" ] && qseg+=" 7d:${p7}%"
+      STATS+="  ${qseg}"
+    done
+  else
+    [ -n "${RATE5_PCT:-}" ] && STATS+=" 5h:${RATE5_PCT}%"
+    [ -n "${RATE7_PCT:-}" ] && STATS+=" 7d:${RATE7_PCT}%"
+  fi
   pct_color "${CTX_PCT:-0}"; LINE+="${REPLY} ${STATS} ${RESET}"
 
   # Extras (cycle mode / cost / tasks), after the bars: they also use REPLY.

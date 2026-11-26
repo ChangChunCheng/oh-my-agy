@@ -55,7 +55,7 @@ Changes apply on the next statusline refresh; no restart is needed.
 | `MODEL_CTX_TAG` | `true` | Append ` [1M]` to the model when the context window is 1M or larger |
 | `MODEL_STRIP_EFFORT` | `false` | Strip a trailing ` (High)` effort suffix from the model name |
 | `GIT_CACHE_TTL` | `10` | Seconds a git summary is reused; `0` disables the cache |
-| `QUOTA_FAMILY` | `auto` | Quota buckets for the meters: `auto` follows the model, `gemini`, or `3p` |
+| `QUOTA_FAMILY` | `all` | Quota buckets for the meters: `all` shows every reported family, `auto` follows the model, or force `gemini` / `3p` |
 | `SHOW_MODE` | `true` | Show the cycle mode (`auto`, `accept-edits`, `plan`) when active |
 | `SHOW_COST` | `false` | Show the estimated session spend in USD |
 | `SHOW_TASKS` | `true` | Show running background tasks and subagents when above 0 |
@@ -64,8 +64,9 @@ Changes apply on the next statusline refresh; no restart is needed.
 
 agy reports quota buckets such as `gemini-5h`, `gemini-weekly`, `3p-5h` and `3p-weekly`, each with a `remaining_fraction`. The meters show the **used** share (`1 - remaining_fraction`), labelled `5h` and `7d`:
 
-- `QUOTA_FAMILY=auto`: Gemini models (model id or name contains "gemini") use the `gemini-*` buckets, any other model uses `3p-*`.
-- A family without the bucket falls back to any `*-5h` / `*-weekly` bucket; a missing or `disabled` bucket hides its meter.
+- `QUOTA_FAMILY=all` (default): displays every active quota family reported by agy (`gemini`, `3p`, and any future families), each labelled with its family name.
+- `QUOTA_FAMILY=auto`: Gemini models (including Orchestrator) use the `gemini-*` buckets, any other model uses `3p-*`; a missing bucket falls back to any `*-5h` / `*-weekly` bucket.
+- A missing or `disabled` bucket hides its meter (and a family with all buckets disabled is omitted).
 - Above 80% used, the meter shows the time until reset, for example `(2h53m)`.
 
 ## Requirements

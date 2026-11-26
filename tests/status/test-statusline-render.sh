@@ -48,28 +48,57 @@ render_raw() { local json="$1" conf="$2"; ( cd "$NOGIT" && printf '%s' "$json" |
 
 printf 'Running statusline render tests\n\n'
 
-start_test "gemini model: gemini buckets feed 5h/7d, ctx floors"
+start_test "default QUOTA_FAMILY=all: shows every quota family (gemini then 3p)"
 out=$(render "$(base_json)" 'SHOW_COST=true')
 assert_contains "$out" "Gemini 4 Neon (High) [1M]" "model with ctx tag"
 assert_contains "$out" "ctx:14%" "context"
-assert_contains "$out" "5h:50%" "gemini 5h used"
-assert_contains "$out" "7d:10%" "gemini weekly used"
+assert_contains "$out" "gemini 5h:50% 7d:10%" "gemini group shown"
+assert_contains "$out" "3p 5h:20% 7d:5%" "3p group shown"
+assert_contains "$out" "gemini 5h:50% 7d:10%  3p 5h:20% 7d:5%" "gemini ordered before 3p"
 assert_contains "$out" "jacky" "account user part"
 assert_not_contains "$out" "example.com" "email domain hidden by default"
 end_test
 
-start_test "3p model: 3p buckets feed 5h/7d"
-out=$(render "$(jqp '.model={"id":"Claude Sonnet 4","display_name":"Claude Sonnet 4"}')")
+start_test "QUOTA_FAMILY=all: extra families follow gemini and 3p alphabetically"
+out=$(render "$(jqp '.quota["zeta-5h"]={"remaining_fraction":0.7}|.quota["alpha-weekly"]={"remaining_fraction":0.6}')")
+assert_contains "$out" "gemini 5h:50% 7d:10%  3p 5h:20% 7d:5%  alpha 7d:40%  zeta 5h:30%" "ordering and partial buckets"
+end_test
+
+start_test "QUOTA_FAMILY=all: renders both groups on one line in every layout"
+for ln in default fancy mygo pure powerline; do
+  out=$(render "$(base_json)" "LAYOUT=$ln")
+  qline=$(printf '%s\n' "$out" | grep 'gemini' | head -n 1)
+  assert_contains "$qline" "gemini" "$ln shows gemini"
+  assert_contains "$qline" "3p" "$ln shows 3p on same line"
+  assert_contains "$qline" "50%" "$ln shows gemini 5h"
+  assert_contains "$qline" "20%" "$ln shows 3p 5h"
+done
+out=$(render "$(base_json)" 'LAYOUT=minimal')
+assert_contains "$out" "gemini 50%/10%" "minimal gemini pair"
+assert_contains "$out" "3p 20%/5%" "minimal 3p pair"
+end_test
+
+start_test "QUOTA_FAMILY=auto: follows model (incl. Orchestrator -> gemini, Claude -> 3p)"
+out=$(render "$(base_json)" 'QUOTA_FAMILY=auto')
+assert_contains "$out" "5h:50%" "gemini 5h used"
+assert_contains "$out" "7d:10%" "gemini weekly used"
+assert_not_contains "$out" "5h:20%" "3p hidden in auto"
+out=$(render "$(jqp '.model={"id":"Orchestrator (Neon)","display_name":"Orchestrator (Neon)"}')" 'QUOTA_FAMILY=auto')
+assert_contains "$out" "5h:50%" "orchestrator maps to gemini"
+out=$(render "$(jqp '.model={"id":"Claude Sonnet 4","display_name":"Claude Sonnet 4"}')" 'QUOTA_FAMILY=auto')
 assert_contains "$out" "Claude Sonnet 4" "model"
 assert_contains "$out" "5h:20%" "3p 5h used"
 assert_contains "$out" "7d:5%" "3p weekly used"
+assert_not_contains "$out" "5h:50%" "gemini hidden in auto"
 end_test
 
 start_test "QUOTA_FAMILY overrides the model-based choice"
 out=$(render "$(base_json)" 'QUOTA_FAMILY=3p')
 assert_contains "$out" "5h:20%" "forced 3p"
+assert_not_contains "$out" "5h:50%" "only 3p"
 out=$(render "$(jqp '.model={"display_name":"Claude Sonnet 4"}')" 'QUOTA_FAMILY=gemini')
 assert_contains "$out" "5h:50%" "forced gemini"
+assert_not_contains "$out" "5h:20%" "only gemini"
 end_test
 
 start_test "missing quota object: no 5h/7d meters, ctx still shown"
@@ -77,17 +106,22 @@ out=$(render "$(jqp 'del(.quota)')")
 assert_contains "$out" "ctx:14%" "ctx"
 assert_not_contains "$out" "5h:" "no 5h"
 assert_not_contains "$out" "7d:" "no 7d"
+assert_not_contains "$out" "gemini" "no gemini label"
 end_test
 
-start_test "family without the bucket falls back to any *-5h bucket"
-out=$(render "$(jqp '.quota |= with_entries(select(.key|startswith("3p")))')")
+start_test "auto mode: family without the bucket falls back to any *-5h bucket"
+out=$(render "$(jqp '.quota |= with_entries(select(.key|startswith("3p")))')" 'QUOTA_FAMILY=auto')
 assert_contains "$out" "5h:20%" "fallback to 3p-5h for a gemini model"
 end_test
 
-start_test "disabled bucket hides its meter"
+start_test "disabled bucket hides its meter (and whole group when all disabled)"
 out=$(render "$(jqp '.quota["gemini-5h"].disabled=true')")
-assert_not_contains "$out" "5h:" "disabled 5h hidden"
-assert_contains "$out" "7d:10%" "weekly still shown"
+assert_contains "$out" "gemini 7d:10%" "gemini keeps weekly"
+assert_not_contains "$out" "gemini 5h:" "disabled gemini 5h hidden"
+assert_contains "$out" "3p 5h:20% 7d:5%" "3p unaffected"
+out=$(render "$(jqp '.quota["3p-5h"].disabled=true|.quota["3p-weekly"].disabled=true')")
+assert_contains "$out" "gemini 5h:50% 7d:10%" "gemini shown"
+assert_not_contains "$out" "3p" "fully disabled family omitted"
 end_test
 
 start_test "null model renders without error"
@@ -119,11 +153,12 @@ render "$(jqp '.conversation_id="../x y"|.session_id="../x y"')" >/dev/null
 [ -f "$OMA_STATE_DIR/ctx-___x_y" ] || { echo "    FAIL: sanitized ctx file missing: $(ls "$OMA_STATE_DIR")" >&2; TEST_FAILED=1; }
 end_test
 
-start_test "above 80% used: reset countdown suffix; at/below 80% none"
-out=$(render "$(jqp '.quota["gemini-5h"]={"remaining_fraction":0.1,"reset_in_seconds":10418}|.quota["gemini-weekly"]={"remaining_fraction":0.05,"reset_in_seconds":597218}')" 'LAYOUT=default')
-assert_contains "$out" "90% (2h53m)" "5h countdown"
-assert_contains "$out" "95% (6d21h)" "weekly countdown"
-out=$(render "$(jqp '.quota["gemini-5h"]={"remaining_fraction":0.2,"reset_in_seconds":10418}')" 'LAYOUT=default')
+start_test "above 80% used: reset countdown suffix in all and single modes; at/below 80% none"
+out=$(render "$(jqp '.quota["gemini-5h"]={"remaining_fraction":0.1,"reset_in_seconds":10418}|.quota["gemini-weekly"]={"remaining_fraction":0.05,"reset_in_seconds":597218}|.quota["3p-5h"]={"remaining_fraction":0.15,"reset_in_seconds":3720}')" 'LAYOUT=default')
+assert_contains "$out" "90% (2h53m)" "gemini 5h countdown"
+assert_contains "$out" "95% (6d21h)" "gemini weekly countdown"
+assert_contains "$out" "85% (1h2m)" "3p 5h countdown"
+out=$(render "$(jqp '.quota["gemini-5h"]={"remaining_fraction":0.2,"reset_in_seconds":10418}')" 'LAYOUT=default' 'QUOTA_FAMILY=auto')
 assert_not_contains "$out" "80% (" "exactly 80% has no suffix"
 end_test
 

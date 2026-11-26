@@ -48,14 +48,28 @@ render() {
     [ -n "$LINE_STATS" ] && LINE2+=" ${C_SUBTEXT}│${RESET} ${LINE_STATS} ${C_SUBTEXT}lines${RESET}"
   fi
 
-  # Line 3: usage meters
+  # Line 3: usage meters (+ Line 4: all quota groups on one line when QUOTA_ALL=1)
   meter "${CTX_PCT:-0}" "ctx" 12; local LINE3=$REPLY
-  if [ -n "${RATE5_PCT:-}" ]; then meter "$RATE5_PCT" " 5h" 12; LINE3+="  ${REPLY}${RATE5_SUFFIX}"; fi
-  if [ -n "${RATE7_PCT:-}" ]; then meter "$RATE7_PCT" " 7d" 12; LINE3+="  ${REPLY}${RATE7_SUFFIX}"; fi
+  local LINE4=""
+  if [ "${QUOTA_ALL:-0}" = 1 ]; then
+    local i qseg p5 p7 bw=12
+    [ "${QUOTA_COUNT:-0}" -gt 1 ] && bw=8
+    for ((i=0; i<${QUOTA_COUNT:-0}; i++)); do
+      qseg="${C_SUBTEXT}${QUOTA_FAMILIES[i]}${RESET}"
+      p5=${QUOTA_5H_PCT[i]}; p7=${QUOTA_7D_PCT[i]}
+      if [ -n "$p5" ]; then meter "$p5" "5h" "$bw"; qseg+=" ${REPLY}${QUOTA_5H_SUFFIX[i]}"; fi
+      if [ -n "$p7" ]; then meter "$p7" "7d" "$bw"; qseg+=" ${REPLY}${QUOTA_7D_SUFFIX[i]}"; fi
+      LINE4="${LINE4:+${LINE4} ${C_SUBTEXT}│${RESET} }${qseg}"
+    done
+  else
+    if [ -n "${RATE5_PCT:-}" ]; then meter "$RATE5_PCT" " 5h" 12; LINE3+="  ${REPLY}${RATE5_SUFFIX}"; fi
+    if [ -n "${RATE7_PCT:-}" ]; then meter "$RATE7_PCT" " 7d" 12; LINE3+="  ${REPLY}${RATE7_SUFFIX}"; fi
+  fi
 
   # Extras (cycle mode / cost / tasks), after the bars: they also use REPLY.
   oma_extras; [ -n "$REPLY" ] && LINE3+="  $REPLY"
   echo -e "$LINE1"
   [ -n "$LINE2" ] && echo -e "$LINE2"
   echo -e "$LINE3"
+  [ -n "$LINE4" ] && echo -e "$LINE4"
 }

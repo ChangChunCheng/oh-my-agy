@@ -34,9 +34,9 @@ LAYOUT="default"
 : "${MODEL_CTX_TAG:=true}"
 # Strip the trailing " (High)" style effort suffix from the model name.
 : "${MODEL_STRIP_EFFORT:=false}"
-# Which quota buckets feed the 5h / 7d meters: auto (follow the model:
-# Gemini models use gemini-*, others use 3p-*) | gemini | 3p.
-: "${QUOTA_FAMILY:=auto}"
+# Which quota buckets feed the 5h / 7d meters: all (every family reported by
+# agy, e.g. gemini and 3p) | auto (follow the model) | gemini | 3p.
+: "${QUOTA_FAMILY:=all}"
 : "${SHOW_MODE:=true}"
 : "${SHOW_COST:=false}"
 : "${SHOW_TASKS:=true}"
@@ -284,6 +284,7 @@ _oma_read_status_fields() {
   IFS= read -r -d '' RATE5_SECS
   IFS= read -r -d '' RATE7_PCT
   IFS= read -r -d '' RATE7_SECS
+  IFS= read -r -d '' QUOTA_ROWS
   IFS= read -r -d '' ACC_EMAIL
   IFS= read -r -d '' ACC_TIER
   IFS= read -r -d '' MODE
@@ -297,8 +298,10 @@ _oma_read_status_fields() {
 # backslashes doubled so the layouts' `echo -e` prints them literally.
 # Quota: agy reports buckets such as gemini-5h / gemini-weekly / 3p-5h /
 # 3p-weekly with a remaining_fraction; the meters show the USED percentage of
-# the 5h and weekly bucket of one family ($fam, or derived from the model).
-# A family without the bucket falls back to any "*-5h" / "*-weekly" bucket.
+# the 5h and weekly buckets. With QUOTA_FAMILY=all every active family is
+# emitted into QUOTA_ROWS (ordered gemini, 3p, then others alphabetically);
+# single-family modes (auto, gemini, 3p) pick one family and fall back to any
+# "*-5h" / "*-weekly" bucket when absent.
 _OMA_JQ_FILTER='
   def clean: (. // "") | tostring | gsub("[\u0000-\u001f\u007f-\u009f]"; "")
     | gsub("^[[:space:]]+|[[:space:]]+$"; "");
@@ -313,11 +316,30 @@ _OMA_JQ_FILTER='
     else "" end;
   def secs: if type == "object" and (.reset_in_seconds | type) == "number"
     then (.reset_in_seconds | if . < 0 then 0 else floor end) else "" end;
+  def fam_of:
+    if endswith("-5h") then .[:-3]
+    elif endswith("-weekly") then .[:-7]
+    else empty end;
+  def fam_ord:
+    if . == "gemini" then [0, .]
+    elif . == "3p" then [1, .]
+    else [2, .] end;
   ((.quota | objects) // {}) as $q
   | (if $fam == "gemini" or $fam == "3p" then $fam
-     elif ((.model.id // .model.display_name // "gemini") | tostring | test("gemini"; "i")) then "gemini"
+     elif ((.model.id // .model.display_name // "gemini") | tostring | test("gemini|orchestrator"; "i")) then "gemini"
      else "3p" end) as $f
   | pick($q; $f; "5h") as $b5 | pick($q; $f; "weekly") as $b7
+  | (if $fam == "all" then
+       [($q | keys_unsorted | map(fam_of) | unique | sort_by(fam_ord))[]
+        | . as $g
+        | ($q[$g + "-5h"] | used) as $p5
+        | (if $p5 != "" then ($q[$g + "-5h"] | secs) else "" end) as $s5
+        | ($q[$g + "-weekly"] | used) as $p7
+        | (if $p7 != "" then ($q[$g + "-weekly"] | secs) else "" end) as $s7
+        | select($p5 != "" or $p7 != "")
+        | "\($g | clean | esc)\u001f\($p5)\u001f\($s5)\u001f\($p7)\u001f\($s7)"]
+       | join("\n")
+     else "" end) as $qrows
   | "1",
     ((.conversation_id // .session_id // "") | clean),
     ((.model.display_name // .model.id // "") | clean | esc),
@@ -325,6 +347,7 @@ _OMA_JQ_FILTER='
     ((.context_window.used_percentage // 0) | num),
     ((.context_window.context_window_size // 0) | num),
     ($b5 | used), ($b5 | secs), ($b7 | used), ($b7 | secs),
+    $qrows,
     (.email | clean | esc),
     (.plan_tier | clean | esc),
     (.cycle_mode | clean | esc),
@@ -343,7 +366,9 @@ _OMA_JQ_FILTER='
 # Code the session id cannot double as the "jq worked" signal.)
 parse_status_json() {
   JSON_OK=""; SESSION_ID=""; MODEL=""; DIR=""; CTX_PCT=""; CTX_SIZE=""
-  RATE5_PCT=""; RATE5_SECS=""; RATE7_PCT=""; RATE7_SECS=""
+  RATE5_PCT=""; RATE5_SECS=""; RATE7_PCT=""; RATE7_SECS=""; QUOTA_ROWS=""
+  QUOTA_ALL=0; QUOTA_COUNT=0
+  QUOTA_FAMILIES=(); QUOTA_5H_PCT=(); QUOTA_5H_SECS=(); QUOTA_7D_PCT=(); QUOTA_7D_SECS=()
   ACC_EMAIL=""; ACC_TIER=""; MODE=""; COST=""; TASKS=""; AGENTS=""
   if [ $# -gt 0 ]; then
     _oma_read_status_fields < <(jq --raw-output0 --arg fam "$QUOTA_FAMILY" "$_OMA_JQ_FILTER" <<<"$1" 2>/dev/null)
@@ -351,6 +376,19 @@ parse_status_json() {
     _oma_read_status_fields < <(jq --raw-output0 --arg fam "$QUOTA_FAMILY" "$_OMA_JQ_FILTER" 2>/dev/null)
   fi
   [ "$JSON_OK" = 1 ] || JSON_OK=""
+  if [ "$QUOTA_FAMILY" = all ]; then
+    QUOTA_ALL=1
+    local _qf _q5p _q5s _q7p _q7s
+    while IFS=$'\x1f' read -r _qf _q5p _q5s _q7p _q7s; do
+      [ -n "$_qf" ] || continue
+      QUOTA_FAMILIES+=("$_qf")
+      QUOTA_5H_PCT+=("$_q5p")
+      QUOTA_5H_SECS+=("$_q5s")
+      QUOTA_7D_PCT+=("$_q7p")
+      QUOTA_7D_SECS+=("$_q7s")
+    done <<< "$QUOTA_ROWS"
+    QUOTA_COUNT=${#QUOTA_FAMILIES[@]}
+  fi
   if [ "$MODEL_STRIP_EFFORT" = true ]; then
     case $MODEL in *' ('*')') MODEL="${MODEL% (*}" ;; esac
   fi
@@ -431,12 +469,26 @@ _oma_countdown() {
 # Reset suffix " (2h53m)" once a meter is above 80% used.
 resolve_rate_suffixes() {
   RATE5_SUFFIX=""; RATE7_SUFFIX=""
+  QUOTA_5H_SUFFIX=(); QUOTA_7D_SUFFIX=()
   if [[ ${RATE5_PCT-} =~ ^[0-9]+$ ]] && [ "$RATE5_PCT" -gt 80 ]; then
     _oma_countdown "$RATE5_SECS"; [ -n "$REPLY" ] && RATE5_SUFFIX=" ($REPLY)"
   fi
   if [[ ${RATE7_PCT-} =~ ^[0-9]+$ ]] && [ "$RATE7_PCT" -gt 80 ]; then
     _oma_countdown "$RATE7_SECS"; [ -n "$REPLY" ] && RATE7_SUFFIX=" ($REPLY)"
   fi
+  local i p5 s5 p7 s7 suf5 suf7
+  for ((i=0; i<${QUOTA_COUNT:-0}; i++)); do
+    p5=${QUOTA_5H_PCT[i]}; s5=${QUOTA_5H_SECS[i]}; suf5=""
+    p7=${QUOTA_7D_PCT[i]}; s7=${QUOTA_7D_SECS[i]}; suf7=""
+    if [[ $p5 =~ ^[0-9]+$ ]] && [ "$p5" -gt 80 ]; then
+      _oma_countdown "$s5"; [ -n "$REPLY" ] && suf5=" ($REPLY)"
+    fi
+    if [[ $p7 =~ ^[0-9]+$ ]] && [ "$p7" -gt 80 ]; then
+      _oma_countdown "$s7"; [ -n "$REPLY" ] && suf7=" ($REPLY)"
+    fi
+    QUOTA_5H_SUFFIX+=("$suf5")
+    QUOTA_7D_SUFFIX+=("$suf7")
+  done
 }
 
 # Split cached_git_info's 6 TAB fields into globals. Zero-fork. TAB→US (\x1f)

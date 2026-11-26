@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/ChangChunCheng/oh-my-agy/releases"><img src="https://img.shields.io/badge/release-v1.0.0--rc.1-blue" alt="Release"></a>
+  <a href="https://github.com/ChangChunCheng/oh-my-agy/releases"><img src="https://img.shields.io/badge/release-v1.0.0--rc.2-blue" alt="Release"></a>
   <a href="https://github.com/ChangChunCheng/oh-my-agy/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License"></a>
 </p>
 

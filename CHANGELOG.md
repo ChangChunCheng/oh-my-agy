@@ -4,6 +4,16 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.0.0-rc.2] - 2026-11-26
+
+### Changed
+
+- **oh-my-status**: display all active quota families reported by `agy` (e.g. `gemini` and `3p`) on a single row by default (`QUOTA_FAMILY=all`), while retaining `auto`, `gemini`, and `3p` single-family modes. Updated all 6 layouts, `preview.sh`, tests, and README.
+
+### Fixed
+
+- **oh-my-status**: map `Orchestrator` models to the `gemini` quota family in `QUOTA_FAMILY=auto` mode (when `agy` puts the display name in `.model.id`).
+
 ## [1.0.0-rc.1] - 2026-11-26
 
 ### Added

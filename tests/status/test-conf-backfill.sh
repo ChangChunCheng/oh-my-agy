@@ -54,9 +54,9 @@ oma_conf_has_key "$OMA_TEST_ROOT/none" QUOTA_FAMILY; assert_eq 1 "$?" "no file"
 end_test
 
 # ---------------- template ----------------
-start_test "template: sourced defaults, QUOTA_FAMILY=auto, no icon assigned"
+start_test "template: sourced defaults, QUOTA_FAMILY=all, no icon assigned"
 out=$(env -u ACCOUNT_ICON -u QUOTA_FAMILY bash -c '. "$1"; printf "%s|%s|%s|%s|%s|%s|%s" "${THEME-}" "${GIT_CACHE_TTL-}" "${QUOTA_FAMILY-}" "${SHOW_MODE-}" "${SHOW_COST-}" "${SHOW_TASKS-}" "${ACCOUNT_ICON-unset}"' _ "$TPL")
-assert_eq "catppuccin|10|auto|true|false|true|unset" "$out" "defaults"
+assert_eq "catppuccin|10|all|true|false|true|unset" "$out" "defaults"
 miss=$(oma_missing_conf_keys "$TPL" /dev/null | paste -sd, -)
 for k in QUOTA_FAMILY SHOW_MODE SHOW_COST SHOW_TASKS ACCOUNT_FORMAT MODEL_CTX_TAG; do assert_contains ",$miss," ",$k," "$k listed for an empty conf"; done
 assert_not_contains "$miss" "ICON" "icon is a commented example"
@@ -239,7 +239,7 @@ after=$(cat "$OMA_HOME/status.conf")
 assert_eq "$before" "$(printf '%s' "$after" | head -n 3)" "existing lines unchanged byte for byte"
 assert_contains "$after" "# --- added by /status-setup ($(date +%F)) ---" "header"
 assert_eq "1" "$(grep -c -- '--- added by' "$OMA_HOME/status.conf")" "one header"
-assert_contains "$after" "QUOTA_FAMILY=auto" "template default value"
+assert_contains "$after" "QUOTA_FAMILY=all" "template default value"
 assert_eq "" "$(cf missing-keys)" "nothing missing afterwards"
 cp "$OMA_HOME/status.conf" "$OMA_TEST_ROOT/snap"; out=$(cf backfill)
 cmp -s "$OMA_TEST_ROOT/snap" "$OMA_HOME/status.conf" || { echo "    FAIL: second backfill changed the file" >&2; TEST_FAILED=1; }

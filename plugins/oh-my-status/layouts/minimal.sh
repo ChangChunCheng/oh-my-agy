@@ -28,8 +28,25 @@ render() {
 
   LINE+=" ${C_SUBTEXT}|${RESET}"
   pct_color "${CTX_PCT:-0}"; LINE+=" ${REPLY}${CTX_PCT:-0}%${RESET}"
-  if [ -n "${RATE5_PCT:-}" ]; then pct_color "$RATE5_PCT"; LINE+=" ${REPLY}${RATE5_PCT}%${RESET}"; fi
-  if [ -n "${RATE7_PCT:-}" ]; then pct_color "$RATE7_PCT"; LINE+=" ${REPLY}${RATE7_PCT}%${RESET}"; fi
+  if [ "${QUOTA_ALL:-0}" = 1 ]; then
+    local i p5 p7 qseg
+    for ((i=0; i<${QUOTA_COUNT:-0}; i++)); do
+      p5=${QUOTA_5H_PCT[i]}; p7=${QUOTA_7D_PCT[i]}
+      qseg="${C_SUBTEXT}${QUOTA_FAMILIES[i]}${RESET}"
+      if [ -n "$p5" ] && [ -n "$p7" ]; then
+        pct_color "$p5"; qseg+=" ${REPLY}${p5}%${RESET}"
+        pct_color "$p7"; qseg+="${C_SUBTEXT}/${RESET}${REPLY}${p7}%${RESET}"
+      elif [ -n "$p5" ]; then
+        pct_color "$p5"; qseg+=" ${REPLY}5h:${p5}%${RESET}"
+      elif [ -n "$p7" ]; then
+        pct_color "$p7"; qseg+=" ${REPLY}7d:${p7}%${RESET}"
+      fi
+      LINE+=" ${C_SUBTEXT}|${RESET} ${qseg}"
+    done
+  else
+    if [ -n "${RATE5_PCT:-}" ]; then pct_color "$RATE5_PCT"; LINE+=" ${REPLY}${RATE5_PCT}%${RESET}"; fi
+    if [ -n "${RATE7_PCT:-}" ]; then pct_color "$RATE7_PCT"; LINE+=" ${REPLY}${RATE7_PCT}%${RESET}"; fi
+  fi
 
   # Extras (cycle mode / cost / tasks), after the bars: they also use REPLY.
   oma_extras; [ -n "$REPLY" ] && LINE+="  $REPLY"

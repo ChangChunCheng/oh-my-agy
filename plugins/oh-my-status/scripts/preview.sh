@@ -23,6 +23,7 @@ CUR_LAYOUT="${LAYOUT:-$CUR_LAYOUT}"
 # The preview always shows the extras (they are toggles in the real conf).
 SHOW_MODE=true SHOW_COST=false SHOW_TASKS=true
 ACCOUNT_SHOW_CONF="${ACCOUNT_SHOW:-true}"
+QUOTA_FAMILY_CONF="${QUOTA_FAMILY:-all}"
 
 # Sample data for demo
 DEMO_MODEL="Gemini 4 Neon (High) [1M]"
@@ -31,6 +32,7 @@ DEMO_BRANCH="feat/auth"
 DEMO_ADD=3 DEMO_MOD=5 DEMO_DEL=1
 DEMO_LADD=142 DEMO_LDEL=38
 DEMO_CTX=42 DEMO_R5=18 DEMO_R7=6
+DEMO_3P_R5=25 DEMO_3P_R7=10
 
 source "$SCRIPT_DIR/lib/render-common.sh"
 
@@ -84,6 +86,17 @@ preview_layout() {
   LINES_ADD=$DEMO_LADD LINES_DEL=$DEMO_LDEL
   CTX_PCT=$DEMO_CTX RATE5_PCT=$DEMO_R5 RATE7_PCT=$DEMO_R7
   RATE5_SUFFIX="" RATE7_SUFFIX=""
+  if [ "$QUOTA_FAMILY_CONF" = all ]; then
+    QUOTA_ALL=1 QUOTA_COUNT=2
+    QUOTA_FAMILIES=(gemini 3p)
+    QUOTA_5H_PCT=($DEMO_R5 $DEMO_3P_R5)
+    QUOTA_7D_PCT=($DEMO_R7 $DEMO_3P_R7)
+    QUOTA_5H_SUFFIX=("" "")
+    QUOTA_7D_SUFFIX=("" "")
+  else
+    QUOTA_ALL=0 QUOTA_COUNT=0
+    QUOTA_FAMILIES=() QUOTA_5H_PCT=() QUOTA_7D_PCT=() QUOTA_5H_SUFFIX=() QUOTA_7D_SUFFIX=()
+  fi
   MODE="plan" COST="0.42" TASKS=1 AGENTS=0
   ACCOUNT_ICON="${ACCOUNT_ICON-$'\xef\x80\x87'}"
   ACCOUNT=""
