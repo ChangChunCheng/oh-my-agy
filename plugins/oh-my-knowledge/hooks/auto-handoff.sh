@@ -14,6 +14,7 @@ case "${BASH_SOURCE[0]}" in */*) HOOK_DIR="${BASH_SOURCE[0]%/*}" ;; *) HOOK_DIR=
 # shellcheck source=../scripts/lib/common.sh
 . "$HOOK_DIR/../scripts/lib/common.sh" 2>/dev/null || quiet
 omk_config 2>/dev/null || quiet
+omk_resolve_jq 2>/dev/null || quiet
 [ -z "${OMK_CONFIG_ERROR:-}" ] || quiet
 [ "$OMK_AUTO_HANDOFF" = true ] || quiet
 # Not set up yet (no SCHEMA.md in the knowledge base): stay silent.

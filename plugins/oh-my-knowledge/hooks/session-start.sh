@@ -11,6 +11,7 @@ case "${BASH_SOURCE[0]}" in */*) HOOK_DIR="${BASH_SOURCE[0]%/*}" ;; *) HOOK_DIR=
 # shellcheck source=../scripts/lib/common.sh
 . "$HOOK_DIR/../scripts/lib/common.sh" 2>/dev/null || quiet
 omk_config 2>/dev/null || quiet
+omk_resolve_jq 2>/dev/null || quiet
 
 # One jq call, one value per line (not @tsv: it would double a backslash in cwd).
 l="$("$OMK_JQ" -r '(.conversationId // ""), (.cwd // .workspacePaths[0]? // "")' 2>/dev/null)" || quiet

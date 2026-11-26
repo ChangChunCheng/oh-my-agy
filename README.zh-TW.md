@@ -10,8 +10,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/ChangChunCheng/oh-my-agy/blob/main/LICENSE"><img src="https://img.shields.io/github/license/ChangChunCheng/oh-my-agy" alt="授權"></a>
-  <a href="https://github.com/ChangChunCheng/oh-my-agy"><img src="https://img.shields.io/github/last-commit/ChangChunCheng/oh-my-agy" alt="最近提交"></a>
+  <a href="https://github.com/ChangChunCheng/oh-my-agy/releases"><img src="https://img.shields.io/badge/release-v1.0.0--rc.1-blue" alt="版本"></a>
+  <a href="https://github.com/ChangChunCheng/oh-my-agy/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="授權"></a>
 </p>
 
 ---
@@ -46,7 +46,10 @@
 - bash 3.2 以上（建議 bash 5）
 - `jq` 1.7 以上
 - `git` 2.31 以上
-- **oh-my-knowledge** 的 lint 與搜尋需要 `gawk` 與 GNU `find`。macOS 請執行 `brew install gawk findutils`，並把 GNU `find` 放在 `PATH` 前面。
+- **oh-my-knowledge** 的 lint 與搜尋需要 `gawk` 與 GNU `find`（`findutils`）：
+  - macOS：`brew install gawk findutils jq`（腳本會自動偵測 Homebrew 的 `gawk`／`gfind`，不必手動修改 `PATH`；若想讓終端機預設使用 GNU `find`，可將 `export PATH="$(brew --prefix findutils)/libexec/gnubin:$PATH"` 加入 `~/.zshrc`）。
+  - Debian/Ubuntu：`sudo apt install gawk findutils jq`
+  - Windows：`winget install jqlang.jq`（Git Bash 已內建 `gawk` 與 GNU `find`）。
 - 圖示版型需要 Nerd Font（`pure` 版型不需要）
 
 ## 安裝

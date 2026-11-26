@@ -242,3 +242,164 @@ _omk_upper_into() {
   done
   printf -v "$1" '%s' "$_r"
 }
+
+# _omk_brew_fallback_allowed: true on macOS when PATH looks like a real system
+# PATH (contains /usr/bin or /bin), or when OMK_BREW_PREFIX is explicitly set.
+# Keeps isolated tests (PATH=<empty dir>) from accidentally picking up host tools.
+_omk_brew_fallback_allowed() {
+  [ -n "${OMK_BREW_PREFIX:-}" ] && return 0
+  case "${OMK_OSTYPE:-${OSTYPE:-}}" in
+    darwin*)
+      case ":${PATH:-}:" in
+        *:/usr/bin:*|*:/bin:*) return 0 ;;
+      esac ;;
+  esac
+  return 1
+}
+
+# _omk_brew_prefixes: prints candidate Homebrew prefixes, one per line.
+_omk_brew_prefixes() {
+  if [ -n "${OMK_BREW_PREFIX:-}" ]; then
+    printf '%s\n' "$OMK_BREW_PREFIX"
+  else
+    printf '%s\n' /opt/homebrew /usr/local
+  fi
+}
+
+# omk_install_hint <tool>...: prints a platform-appropriate install command for
+# one or more tools (gawk, find, jq, git). OMK_OSTYPE / OMK_PKG_MGR override
+# detection for tests.
+omk_install_hint() {
+  local _os="${OMK_OSTYPE:-${OSTYPE:-}}" _pkgs="" _t _p _seen=" "
+  case "$_os" in
+    darwin*)
+      for _t in "$@"; do
+        case "$_t" in
+          find|gfind|findutils) _p=findutils ;;
+          gawk) _p=gawk ;;
+          jq) _p=jq ;;
+          git) _p=git ;;
+          *) _p="$_t" ;;
+        esac
+        case "$_seen" in *" $_p "*) ;; *) _seen="$_seen$_p "; _pkgs="${_pkgs:+$_pkgs }$_p" ;; esac
+      done
+      printf 'brew install %s' "$_pkgs" ;;
+    msys*|cygwin*|mingw*|win*)
+      for _t in "$@"; do
+        case "$_t" in
+          jq) _p=jqlang.jq ;;
+          gawk|find|gfind|findutils|git) _p=Git.Git ;;
+          *) _p="$_t" ;;
+        esac
+        case "$_seen" in *" $_p "*) ;; *) _seen="$_seen$_p "; _pkgs="${_pkgs:+$_pkgs }$_p" ;; esac
+      done
+      printf 'winget install %s' "$_pkgs" ;;
+    *)
+      local _mgr=""
+      if [ -n "${OMK_PKG_MGR:-}" ]; then _mgr="$OMK_PKG_MGR"
+      elif command -v apt-get >/dev/null 2>&1; then _mgr=apt
+      elif command -v dnf >/dev/null 2>&1; then _mgr=dnf
+      elif command -v pacman >/dev/null 2>&1; then _mgr=pacman
+      elif command -v zypper >/dev/null 2>&1; then _mgr=zypper
+      elif command -v apk >/dev/null 2>&1; then _mgr=apk
+      elif command -v brew >/dev/null 2>&1; then _mgr=brew
+      fi
+      for _t in "$@"; do
+        case "$_t" in
+          find|gfind|findutils) _p=findutils ;;
+          gawk) _p=gawk ;;
+          jq) _p=jq ;;
+          git) _p=git ;;
+          *) _p="$_t" ;;
+        esac
+        case "$_seen" in *" $_p "*) ;; *) _seen="$_seen$_p "; _pkgs="${_pkgs:+$_pkgs }$_p" ;; esac
+      done
+      case "$_mgr" in
+        apt) printf 'sudo apt install %s' "$_pkgs" ;;
+        dnf) printf 'sudo dnf install %s' "$_pkgs" ;;
+        pacman) printf 'sudo pacman -S %s' "$_pkgs" ;;
+        zypper) printf 'sudo zypper install %s' "$_pkgs" ;;
+        apk) printf 'sudo apk add %s' "$_pkgs" ;;
+        brew) printf 'brew install %s' "$_pkgs" ;;
+        *) printf 'install %s using your system package manager' "$_pkgs" ;;
+      esac ;;
+  esac
+}
+
+# omk_resolve_gawk: sets OMK_GAWK to gawk on PATH or Homebrew fallback.
+omk_resolve_gawk() {
+  if command -v gawk >/dev/null 2>&1; then
+    OMK_GAWK="gawk"
+    return 0
+  fi
+  if _omk_brew_fallback_allowed; then
+    local _pfx
+    while IFS= read -r _pfx; do
+      if [ -x "$_pfx/bin/gawk" ]; then
+        OMK_GAWK="$_pfx/bin/gawk"
+        return 0
+      fi
+    done < <(_omk_brew_prefixes)
+  fi
+  OMK_GAWK=""
+  return 1
+}
+
+# omk_resolve_jq: verifies OMK_JQ (default jq) on PATH or Homebrew fallback.
+omk_resolve_jq() {
+  local _j="${OMK_JQ:-jq}"
+  if command -v "$_j" >/dev/null 2>&1; then
+    OMK_JQ="$_j"
+    return 0
+  fi
+  if [ "$_j" = "jq" ] && _omk_brew_fallback_allowed; then
+    local _pfx
+    while IFS= read -r _pfx; do
+      if [ -x "$_pfx/bin/jq" ]; then
+        OMK_JQ="$_pfx/bin/jq"
+        return 0
+      fi
+    done < <(_omk_brew_prefixes)
+  fi
+  return 1
+}
+
+# _omk_is_gnu_find <bin>: true when <bin> supports GNU -printf.
+_omk_is_gnu_find() {
+  "$1" /dev/null -maxdepth 0 -printf '' >/dev/null 2>&1
+}
+
+# omk_resolve_gnu_find: sets OMK_FIND to a GNU find (supporting -printf).
+# Prefers `find` on PATH, then `gfind` on PATH, then Homebrew findutils on macOS.
+# A `find` on PATH that fails silently (no option/predicate error on stderr) is
+# kept as-is so callers treat runtime find failures as fatal (exit 1).
+omk_resolve_gnu_find() {
+  local _err="" _pfx _cand
+  if command -v find >/dev/null 2>&1; then
+    if _omk_is_gnu_find find; then
+      OMK_FIND="find"
+      return 0
+    fi
+    _err="$(find /dev/null -maxdepth 0 -printf '' 2>&1)"
+    if [ -z "$_err" ]; then
+      OMK_FIND="find"
+      return 0
+    fi
+  fi
+  if command -v gfind >/dev/null 2>&1 && _omk_is_gnu_find gfind; then
+    OMK_FIND="gfind"
+    return 0
+  fi
+  if _omk_brew_fallback_allowed; then
+    while IFS= read -r _pfx; do
+      for _cand in "$_pfx/opt/findutils/libexec/gnubin/find" "$_pfx/bin/gfind"; do
+        if [ -x "$_cand" ] && _omk_is_gnu_find "$_cand"; then
+          OMK_FIND="$_cand"
+          return 0
+        fi
+      done
+    done < <(_omk_brew_prefixes)
+  fi
+  OMK_FIND=""
+  return 1
+}

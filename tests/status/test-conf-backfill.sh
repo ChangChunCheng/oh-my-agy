@@ -261,6 +261,23 @@ out=$(OMA_HOME="$OMA_HOME" bash "$OMA_HOME/status/configure.sh" missing-keys | p
 assert_contains ",$out," ",QUOTA_FAMILY," "installed copy finds the template"
 end_test
 
+start_test "configure.sh reports install/upgrade command when jq 1.7+ is missing or too old"
+EMPTY_BIN="$OMA_TEST_ROOT/emptybin"; mkdir -p "$EMPTY_BIN"
+err=$(PATH="$EMPTY_BIN" OMA_OSTYPE=darwin24 OMA_HOME="$OMA_HOME" "$BASH_BIN" "$PLUGIN/scripts/configure.sh" status 2>&1); rc=$?
+assert_eq 2 "$rc" "missing jq exit 2"
+assert_contains "$err" "jq 1.7+ is required" "missing jq message"
+assert_contains "$err" "brew install jq" "macOS install command"
+err=$(PATH="$EMPTY_BIN" OMA_OSTYPE=msys OMA_HOME="$OMA_HOME" "$BASH_BIN" "$PLUGIN/scripts/configure.sh" status 2>&1); rc=$?
+assert_eq 2 "$rc" "missing jq exit 2 (win)"
+assert_contains "$err" "winget install jqlang.jq" "Windows install command"
+OLD_JQ="$OMA_TEST_ROOT/oldjq"; mkdir -p "$OLD_JQ"
+printf '#!/bin/bash\nfor a in "$@"; do [ "$a" = "--raw-output0" ] && exit 2; done\nexit 0\n' > "$OLD_JQ/jq"
+chmod +x "$OLD_JQ/jq"
+err=$(PATH="$OLD_JQ" OMA_OSTYPE=darwin24 OMA_HOME="$OMA_HOME" "$BASH_BIN" "$PLUGIN/scripts/configure.sh" status 2>&1); rc=$?
+assert_eq 2 "$rc" "old jq exit 2"
+assert_contains "$err" "Upgrade it with: brew install jq" "old jq upgrade hint"
+end_test
+
 # ---------------- preview.sh ----------------
 start_test "preview.sh: themes, layouts, all; hint line; works from repo and installed copy"
 install_rt

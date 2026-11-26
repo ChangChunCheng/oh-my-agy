@@ -11,7 +11,8 @@
 # Exit: 0 | 1 a pass failed | 2 usage error, KB missing or not set up, gawk or jq missing.
 set -u
 set -o pipefail
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+case "${BASH_SOURCE[0]}" in */*) HERE="${BASH_SOURCE[0]%/*}" ;; *) HERE=. ;; esac
+HERE="$(cd "$HERE" && pwd)"
 # shellcheck source=lib/common.sh
 . "$HERE/lib/common.sh"
 omk_config
@@ -27,8 +28,9 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 case "$CHECKS" in structure|content|all) ;; *) echo "$USAGE" >&2; exit 2 ;; esac
-command -v gawk >/dev/null 2>&1 || { echo "lint.sh: gawk is required but was not found on PATH" >&2; exit 2; }
-command -v "$OMK_JQ" >/dev/null 2>&1 || { echo "lint.sh: jq is required but was not found ($OMK_JQ)" >&2; exit 2; }
+omk_resolve_gawk || { echo "lint.sh: gawk is required but was not found. Install it with: $(omk_install_hint gawk)" >&2; exit 2; }
+omk_resolve_jq || { echo "lint.sh: jq is required but was not found ($OMK_JQ). Install it with: $(omk_install_hint jq)" >&2; exit 2; }
+omk_resolve_gnu_find || { echo "lint.sh: GNU find (supporting -printf) is required. Install it with: $(omk_install_hint find)" >&2; exit 2; }
 KB="$OMK_KNOWLEDGE_DIR"
 [ -f "$KB/SCHEMA.md" ] || { echo "lint.sh: knowledge base not found or not set up (no SCHEMA.md): $KB; run the kb-setup skill" >&2; exit 2; }
 
@@ -37,16 +39,16 @@ trap 'rm -f "$RAW"' EXIT
 : > "$RAW"
 if [ "$CHECKS" != content ]; then
   {
-    find "$KB" -maxdepth 1 -type f -name '*.md' -printf '%s\0%p\0' || exit 1
-    if [ -d "$KB/rules" ]; then find "$KB/rules" -name .git -prune -o -type f -printf '%s\0%p\0' || exit 1; fi
+    "$OMK_FIND" "$KB" -maxdepth 1 -type f -name '*.md' -printf '%s\0%p\0' || exit 1
+    if [ -d "$KB/rules" ]; then "$OMK_FIND" "$KB/rules" -name .git -prune -o -type f -printf '%s\0%p\0' || exit 1; fi
     for d in global projects; do
-      if [ -d "$KB/$d" ]; then find "$KB/$d" \( -name .git -o -name _retired \) -prune -o -type f -name '*.md' -printf '%s\0%p\0' || exit 1; fi
+      if [ -d "$KB/$d" ]; then "$OMK_FIND" "$KB/$d" \( -name .git -o -name _retired \) -prune -o -type f -name '*.md' -printf '%s\0%p\0' || exit 1; fi
     done
     for d in _retired lint; do   # existence only (link targets); no check runs on these pages
-      if [ -d "$KB/$d" ]; then find "$KB/$d" -name .git -prune -o -type f -name '*.md' -printf '%s\0%p\0' || exit 1; fi
+      if [ -d "$KB/$d" ]; then "$OMK_FIND" "$KB/$d" -name .git -prune -o -type f -name '*.md' -printf '%s\0%p\0' || exit 1; fi
     done
   } | LC_ALL=C.UTF-8 OMK_LINT_ROOT="$KB" OMK_MAX_FILE_KB="$OMK_MAX_FILE_KB" OMK_MAX_INDEX_LINE_CHARS="$OMK_MAX_INDEX_LINE_CHARS" \
-    gawk -f "$HERE/lib/lint-structure.awk" > "$RAW" || { echo "lint.sh: structural pass failed" >&2; exit 1; }
+    "$OMK_GAWK" -f "$HERE/lib/lint-structure.awk" > "$RAW" || { echo "lint.sh: structural pass failed" >&2; exit 1; }
 fi
 
 if [ "$CHECKS" != structure ]; then
@@ -80,19 +82,19 @@ if [ "$CHECKS" != structure ]; then
     if [ "$kb_u" != "$kb_b" ] && [ -d "${KB%/*}/$kb_u" ] && [ "${KB%/*}/$kb_u" -ef "$KB" ]; then ICASE=1; fi ;;
   esac
   {
-    find "$KB" -maxdepth 1 -type f -name '*.md' -printf 'K\0%p\0' || exit 1
+    "$OMK_FIND" "$KB" -maxdepth 1 -type f -name '*.md' -printf 'K\0%p\0' || exit 1
     for d in rules global projects; do
-      if [ -d "$KB/$d" ]; then find "$KB/$d" \( -name .git -o -name _retired \) -prune -o -type f -name '*.md' -printf 'K\0%p\0' || exit 1; fi
+      if [ -d "$KB/$d" ]; then "$OMK_FIND" "$KB/$d" \( -name .git -o -name _retired \) -prune -o -type f -name '*.md' -printf 'K\0%p\0' || exit 1; fi
     done
     for d in _retired lint; do   # existence only (link targets); no check runs on these pages
-      if [ -d "$KB/$d" ]; then find "$KB/$d" -name .git -prune -o -type f -name '*.md' -printf 'X\0%p\0' || exit 1; fi
+      if [ -d "$KB/$d" ]; then "$OMK_FIND" "$KB/$d" -name .git -prune -o -type f -name '*.md' -printf 'X\0%p\0' || exit 1; fi
     done
-    if [ -d "$KB/projects" ]; then find "$KB/projects" -mindepth 1 -maxdepth 1 -xtype d -printf 'D\0%f\0' || exit 1; fi
-    if [ "${#AMDIRS[@]}" -gt 0 ]; then find "${AMDIRS[@]}" -maxdepth 1 -type f -name '*.md' -printf 'A\0%p\0' || exit 1; fi
+    if [ -d "$KB/projects" ]; then "$OMK_FIND" "$KB/projects" -mindepth 1 -maxdepth 1 -xtype d -printf 'D\0%f\0' || exit 1; fi
+    if [ "${#AMDIRS[@]}" -gt 0 ]; then "$OMK_FIND" "${AMDIRS[@]}" -maxdepth 1 -type f -name '*.md' -printf 'A\0%p\0' || exit 1; fi
     if [ -f "$RULES_FILE" ]; then printf 'C\0%s\0' "$RULES_FILE"; fi
   } | LC_ALL=C.UTF-8 OMK_LINT_ROOT="$KB" OMK_LINT_QFILE="$QFILE" OMK_LINT_WINPATHS="$WINP" OMK_LINT_ICASE="$ICASE" OMK_TODAY="$OMK_TODAY" \
     OMK_LINT_STALE_DAYS="$OMK_LINT_STALE_DAYS" OMK_LINT_FLAG_DAYS="$OMK_LINT_FLAG_DAYS" \
-    gawk -f "$HERE/lib/lint-content.awk" >> "$RAW" || { echo "lint.sh: content pass failed" >&2; exit 1; }
+    "$OMK_GAWK" -f "$HERE/lib/lint-content.awk" >> "$RAW" || { echo "lint.sh: content pass failed" >&2; exit 1; }
   # missing_path: candidate ~/ paths are tested here with the [ -e ] builtin (no forks)
   while IFS=$'\t' read -r qf ql qp; do
     case "$qp" in "~/"*) ;; *) continue ;; esac

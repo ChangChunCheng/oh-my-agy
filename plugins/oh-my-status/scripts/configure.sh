@@ -14,7 +14,32 @@ if [ -z "${OMA_CONF_TEMPLATE:-}" ]; then
 fi
 [ -r "$SCRIPT_DIR/lib/conf-keys.sh" ] && . "$SCRIPT_DIR/lib/conf-keys.sh"
 
-need_jq() { command -v jq >/dev/null 2>&1 || { echo "configure.sh: jq is required" >&2; exit 2; }; }
+_oma_jq_install_hint() {
+  case "${1:-${OMA_OSTYPE:-${OSTYPE:-}}}" in
+    msys*|cygwin*|mingw*|win*) printf 'winget install jqlang.jq' ;;
+    darwin*) printf 'brew install jq' ;;
+    *)
+      if command -v apt-get >/dev/null 2>&1; then printf 'sudo apt install jq'
+      elif command -v dnf >/dev/null 2>&1; then printf 'sudo dnf install jq'
+      elif command -v pacman >/dev/null 2>&1; then printf 'sudo pacman -S jq'
+      elif command -v zypper >/dev/null 2>&1; then printf 'sudo zypper install jq'
+      elif command -v apk >/dev/null 2>&1; then printf 'sudo apk add jq'
+      elif command -v brew >/dev/null 2>&1; then printf 'brew install jq'
+      else printf 'see https://jqlang.org/download'
+      fi ;;
+  esac
+}
+
+need_jq() {
+  if ! command -v jq >/dev/null 2>&1; then
+    echo "configure.sh: jq 1.7+ is required. Install it with: $(_oma_jq_install_hint)" >&2
+    exit 2
+  fi
+  if ! printf '{}' | jq --raw-output0 '.' >/dev/null 2>&1; then
+    echo "configure.sh: jq 1.7+ is required (your jq does not support --raw-output0). Upgrade it with: $(_oma_jq_install_hint)" >&2
+    exit 2
+  fi
+}
 
 # Prints "none|ours|other" then the current statusLine JSON (null when absent).
 cmd_status() {

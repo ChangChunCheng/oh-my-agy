@@ -19,13 +19,14 @@
 # Exit: 0 (also for "no hits") | 1 a search tool failed | 2 usage error, KB missing or not set up, or gawk missing.
 set -u
 set -o pipefail
-if ! command -v gawk >/dev/null 2>&1; then
-  echo "search.sh: gawk is required but was not found on PATH" >&2
-  exit 2
-fi
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+case "${BASH_SOURCE[0]}" in */*) HERE="${BASH_SOURCE[0]%/*}" ;; *) HERE=. ;; esac
+HERE="$(cd "$HERE" && pwd)"
 # shellcheck source=lib/common.sh
 . "$HERE/lib/common.sh"
+if ! omk_resolve_gawk; then
+  echo "search.sh: gawk is required but was not found. Install it with: $(omk_install_hint gawk)" >&2
+  exit 2
+fi
 # shellcheck source=lib/project.sh
 . "$HERE/lib/project.sh"
 omk_config
@@ -60,7 +61,7 @@ scan() {
   local root="$1"
   while [ "${#root}" -gt 1 ] && [ "${root%/}" != "$root" ]; do root="${root%/}"; done
   find "$root" -mindepth 1 \( -name rules -o -name _retired -o -name lint \) -prune -o -type f -name '*.md' -print0 \
-    | LC_ALL=C.UTF-8 OMK_SCAN_ROOT="$root" OMK_SCAN_PFX="$2" xargs -0 gawk '
+    | LC_ALL=C.UTF-8 OMK_SCAN_ROOT="$root" OMK_SCAN_PFX="$2" xargs -0 "$OMK_GAWK" '
       BEGIN {
         n = split(ENVIRON["OMK_SEARCH_PATS"], raw, "\n")
         for (i = 1; i <= n; i++) if (raw[i] != "") pats[++np] = raw[i]

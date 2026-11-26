@@ -10,8 +10,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/ChangChunCheng/oh-my-agy/blob/main/LICENSE"><img src="https://img.shields.io/github/license/ChangChunCheng/oh-my-agy" alt="License"></a>
-  <a href="https://github.com/ChangChunCheng/oh-my-agy"><img src="https://img.shields.io/github/last-commit/ChangChunCheng/oh-my-agy" alt="Last commit"></a>
+  <a href="https://github.com/ChangChunCheng/oh-my-agy/releases"><img src="https://img.shields.io/badge/release-v1.0.0--rc.1-blue" alt="Release"></a>
+  <a href="https://github.com/ChangChunCheng/oh-my-agy/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License"></a>
 </p>
 
 ---
@@ -46,7 +46,10 @@ A local, git-versioned knowledge base. Durable knowledge (decisions and their re
 - bash 3.2+ (bash 5 recommended)
 - `jq` 1.7+
 - `git` 2.31+
-- For **oh-my-knowledge** lint and search: `gawk` and GNU `find`. On macOS: `brew install gawk findutils` and put the GNU `find` first on `PATH`.
+- For **oh-my-knowledge** lint and search: `gawk` and GNU `find` (`findutils`).
+  - macOS: `brew install gawk findutils jq` (Homebrew `gawk` / `gfind` are auto-detected without changing `PATH`; optionally add `export PATH="$(brew --prefix findutils)/libexec/gnubin:$PATH"` to `~/.zshrc`).
+  - Debian/Ubuntu: `sudo apt install gawk findutils jq`
+  - Windows: `winget install jqlang.jq` (Git Bash already bundles `gawk` and GNU `find`).
 - A Nerd Font for the icon layouts (the `pure` layout needs none)
 
 ## Installation

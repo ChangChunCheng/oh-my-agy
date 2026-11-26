@@ -71,7 +71,7 @@ agy reports quota buckets such as `gemini-5h`, `gemini-weekly`, `3p-5h` and `3p-
 ## Requirements
 
 - bash 3.2+ (bash 5 recommended: fewer processes per refresh)
-- jq 1.7+ (the statusline prints an install hint when it is missing or too old)
+- jq 1.7+ (both `/status-setup` and the statusline print the exact install command when missing or too old: `brew install jq` on macOS, `sudo apt install jq` on Debian/Ubuntu, `winget install jqlang.jq` on Windows)
 - git
 - A Nerd Font for the icon layouts; the `pure` layout needs none
 

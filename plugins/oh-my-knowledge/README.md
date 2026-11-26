@@ -101,7 +101,11 @@ Files in `rules/` load only through one include line in your global rules file `
 
 ## Requirements
 
-`bash` 3.2+, `gawk`, GNU `find` (lint uses `find -printf`), `jq` 1.7+, `git` 2.31+. On macOS: `brew install gawk findutils jq` and put the GNU `find` first on `PATH`.
+`bash` 3.2+, `gawk`, GNU `find` (`findutils`; lint uses `find -printf`), `jq` 1.7+, `git` 2.31+. `kb-setup` checks all prerequisites via `scripts/check-deps.sh` and prints the install command if anything is missing.
+
+- macOS: `brew install gawk findutils jq` (Homebrew `gawk` / `gfind` are auto-detected even without updating `PATH`)
+- Debian/Ubuntu: `sudo apt install gawk findutils jq`
+- Windows: `winget install jqlang.jq` (Git Bash includes `gawk` and GNU `find`)
 
 ## Advanced / testing
 

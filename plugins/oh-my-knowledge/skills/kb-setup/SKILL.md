@@ -9,6 +9,14 @@ The knowledge base (KB) is a local folder with version history. Its maintenance 
 
 Settings live in one shell-style file, `~/.gemini/oh-my-agy/knowledge.conf` (`KEY=value` lines, `#` comments; it is parsed, never executed). Environment variables `OMK_<KEY>` override it (for scripts and tests). agy has no per-plugin settings UI, so this skill is the way to change them.
 
+## 0. Check required tools
+
+```bash
+bash "<scripts>/check-deps.sh"
+```
+
+Exit 0 = all tools ready (`git`, `jq`, `gawk`, GNU `find`; Homebrew `gawk`/`gfind` on macOS are auto-detected). Exit 2 = one or more tools are missing: show the exact install command printed on stderr, ask the user to run it, and stop until they confirm it is installed (then re-run `check-deps.sh` to verify).
+
 ## 1. Show the settings
 
 ```bash

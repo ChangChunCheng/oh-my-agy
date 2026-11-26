@@ -21,11 +21,14 @@
 # (lint's suspect_link_rewrite and reading are the backstop). Presence is a substring test without counting:
 # if the original holds the same span twice and only one copy arrives intact, it passes.
 set -u
-if ! command -v gawk >/dev/null 2>&1; then
-  echo "check-move.sh: gawk is required but was not found on PATH" >&2
+case "${BASH_SOURCE[0]}" in */*) HERE="${BASH_SOURCE[0]%/*}" ;; *) HERE=. ;; esac
+HERE="$(cd "$HERE" && pwd)"
+# shellcheck source=lib/common.sh
+. "$HERE/lib/common.sh"
+if ! omk_resolve_gawk; then
+  echo "check-move.sh: gawk is required but was not found. Install it with: $(omk_install_hint gawk)" >&2
   exit 2
 fi
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 USAGE="usage: check-move.sh [--spans-only] <original> <target>..."
 SIZES=1
 if [ "${1:-}" = "--spans-only" ]; then SIZES=0; shift; fi
@@ -34,6 +37,6 @@ for f in "$@"; do
   [ -f "$f" ] && [ -r "$f" ] || { echo "check-move.sh: cannot read: $f" >&2; exit 2; }
 done
 orig="$1"; shift
-LC_ALL=C gawk -v sizes="$SIZES" -f "$HERE/lib/md-spans.awk" -f "$HERE/lib/check-move.awk" "$orig" "$@"
+LC_ALL=C "$OMK_GAWK" -v sizes="$SIZES" -f "$HERE/lib/md-spans.awk" -f "$HERE/lib/check-move.awk" "$orig" "$@"
 rc=$?
 case "$rc" in 0|1|3) exit "$rc" ;; *) exit 2 ;; esac

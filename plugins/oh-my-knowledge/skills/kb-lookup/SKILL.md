@@ -28,6 +28,7 @@ bash "<scripts>/search.sh" <keyword> <keyword> ...
 - `<scripts>` = the directory named "oh-my-knowledge scripts" in the session-start note (`scripts/` in the plugin folder, two levels above this SKILL.md). Run from the session's working directory; the script derives the project memory directory from it.
 - 3–6 keywords: error message fragments, tool names, symptoms, and synonyms in English and in the user's language.
 - Exit 2 naming `knowledge_dir` or "knowledge base not found": tell the user to run the `kb-setup` skill, then answer without the KB.
+- Exit 2 naming a missing tool (e.g. `gawk`): show the exact install command from stderr and ask the user to run it, then answer without the KB.
 
 Output sections, in order:
 

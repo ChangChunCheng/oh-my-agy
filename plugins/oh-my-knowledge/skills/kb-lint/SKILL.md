@@ -15,7 +15,7 @@ Save the JSON to a file in your scratch/temp directory:
 bash "<scripts>/lint.sh" > '<scratch>/lint.json'
 ```
 
-Exit 0 = ok; 1 = a pass failed; 2 = KB not set up, gawk or jq missing (report and stop; a message naming `knowledge_dir` or "knowledge base not found" → tell the user to run the `kb-setup` skill). The JSON has `findings` (`{check, severity, file, line, detail}`, `file` KB-relative for KB pages but an absolute native path for project-memory and GEMINI.md findings (`unharvested_auto_memory`, `ext_link_missing`, `auto_memory_link_broken`, the `project_marker_*` checks), `line` 0 = whole file; severity red/yellow/blue), `groups` (`{name, pages}`, name `index:<slug>`, `project:<p>` or `family:<prefix>`) and `batches` (`{groups, pages}`, at most 25 pages each). Read it with `jq`.
+Exit 0 = ok; 1 = a pass failed; 2 = KB not set up or a required tool (gawk, GNU find, jq) is missing (show the exact error and install command from stderr and stop; a message naming `knowledge_dir` or "knowledge base not found" → tell the user to run the `kb-setup` skill). The JSON has `findings` (`{check, severity, file, line, detail}`, `file` KB-relative for KB pages but an absolute native path for project-memory and GEMINI.md findings (`unharvested_auto_memory`, `ext_link_missing`, `auto_memory_link_broken`, the `project_marker_*` checks), `line` 0 = whole file; severity red/yellow/blue), `groups` (`{name, pages}`, name `index:<slug>`, `project:<p>` or `family:<prefix>`) and `batches` (`{groups, pages}`, at most 25 pages each). Read it with `jq`.
 
 Checks and who handles them (F = fix directly, P = propose a diff, A = ask the user):
 

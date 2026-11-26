@@ -4,6 +4,24 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.0.0-rc.1] - 2026-11-26
+
+### Added
+
+- **oh-my-knowledge**: `scripts/check-deps.sh` prerequisite checker (run as step 0 of `kb-setup`) and shared dependency helpers (`omk_install_hint`, `omk_resolve_gawk`, `omk_resolve_gnu_find`, `omk_resolve_jq`) with unit tests (`tests/knowledge/test-deps.sh`).
+- **macOS Homebrew auto-detection**: `oh-my-knowledge` scripts and hooks automatically detect `gfind` and Homebrew-installed `gawk`, `findutils`, and `jq` under `/opt/homebrew` and `/usr/local` even when `gnubin` is not prepended to `PATH`.
+
+### Changed
+
+- **Explicit install prompts for missing tools**:
+  - `oh-my-knowledge` (`check-deps.sh`, `lint.sh`, `search.sh`, `check-move.sh`, `init.sh`, and `kb-setup` / `kb-lookup` / `kb-lint` skills) now detect missing `gawk`, GNU `find`, `jq`, or `git` and print the exact platform install command (`brew`, `apt`, `dnf`, `pacman`, `zypper`, `apk`, or `winget`).
+  - `oh-my-status` (`configure.sh` and `status-setup` skill) now checks for `jq 1.7+` (`--raw-output0`) and prints the exact platform install or upgrade command.
+- **Documentation**: expanded platform install instructions in `README.md`, `README.zh-TW.md`, and plugin READMEs.
+
+### Fixed
+
+- **README badges on GitHub web**: replaced dynamic `img.shields.io/github/*` badges (which intermittently returned HTTP 504 via GitHub Camo) with reliable static badges.
+
 ## [1.0.0-rc.0] - 2026-11-25
 
 First release candidate: the Antigravity CLI (`agy`) port of the Claude Code plugins in [oh-my-claude](https://github.com/sw-willie-wu/oh-my-claude).
