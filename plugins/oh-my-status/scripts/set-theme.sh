@@ -4,7 +4,7 @@
 # Only the THEME= / LAYOUT= lines of status.conf are touched (appended when
 # absent). A single argument that is both a theme and a layout name (mygo)
 # sets both.
-case ${BASH_SOURCE[0]} in */*) SCRIPT_DIR=${BASH_SOURCE[0]%/*} ;; *) SCRIPT_DIR=. ;; esac
+case ${BASH_SOURCE[0]} in */*|*\\*) SCRIPT_DIR=${BASH_SOURCE[0]%[/\\]*} ;; *) SCRIPT_DIR=. ;; esac
 if [ -z "${OMA_DIR:-}" ]; then
   if [ -d "$SCRIPT_DIR/themes" ]; then OMA_DIR=$SCRIPT_DIR; else OMA_DIR=$SCRIPT_DIR/..; fi
 fi

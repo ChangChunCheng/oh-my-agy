@@ -65,5 +65,5 @@ render() {
   oma_extras; [ -n "$REPLY" ] && LINE2+="  $REPLY"
   echo -e "$LINE1"
   echo -e "$LINE2"
-  [ -n "$LINE3" ] && echo -e "$LINE3"
+  if [ -n "$LINE3" ]; then echo -e "$LINE3"; fi
 }

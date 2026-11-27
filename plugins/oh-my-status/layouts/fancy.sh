@@ -69,7 +69,7 @@ render() {
   # Extras (cycle mode / cost / tasks), after the bars: they also use REPLY.
   oma_extras; [ -n "$REPLY" ] && LINE3+="  $REPLY"
   echo -e "$LINE1"
-  [ -n "$LINE2" ] && echo -e "$LINE2"
+  if [ -n "$LINE2" ]; then echo -e "$LINE2"; fi
   echo -e "$LINE3"
-  [ -n "$LINE4" ] && echo -e "$LINE4"
+  if [ -n "$LINE4" ]; then echo -e "$LINE4"; fi
 }

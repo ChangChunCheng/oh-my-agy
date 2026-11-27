@@ -4,7 +4,7 @@
 
 # Installed copy: themes/ layouts/ lib/ sit next to this file. Repo checkout:
 # this file lives in scripts/ and themes/ layouts/ sit one level up.
-case ${BASH_SOURCE[0]} in */*) SCRIPT_DIR=${BASH_SOURCE[0]%/*} ;; *) SCRIPT_DIR=. ;; esac
+case ${BASH_SOURCE[0]} in */*|*\\*) SCRIPT_DIR=${BASH_SOURCE[0]%[/\\]*} ;; *) SCRIPT_DIR=. ;; esac
 if [ -z "${OMA_DIR:-}" ]; then
   if [ -d "$SCRIPT_DIR/themes" ]; then OMA_DIR=$SCRIPT_DIR; else OMA_DIR=$SCRIPT_DIR/..; fi
 fi
