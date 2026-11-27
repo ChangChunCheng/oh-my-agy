@@ -1,11 +1,11 @@
 # Oh My Status
 
-A themeable statusline for Antigravity CLI (`agy`) with 9 color themes and 6 layouts. Port of the Claude Code plugin `oh-my-status`.
+A themeable statusline for Antigravity CLI (`agy`) with 9 color themes and 7 layouts. Port of the Claude Code plugin `oh-my-status`.
 
 ## Features
 
 - **9 themes**: `catppuccin`, `dracula`, `nord`, `gruvbox`, `tokyonight`, `onedark`, `solarized`, `rosepine`, `mygo`
-- **6 layouts**: `default`, `minimal`, `powerline`, `pure`, `fancy`, `mygo`
+- **7 layouts**: `default`, `minimal`, `powerline`, `pure`, `fancy`, `fancy2`, `mygo`
 - **Fast git status**: model, directory, branch, file and line counts, cached and invalidated immediately when `.git` refs or the index change; non-repo directories never run `git`
 - **Native Antigravity metrics**: model (with a `[1M]` tag for large context windows), account (email / plan tier), context bar, 5h and 7d quota bars with a reset countdown above 80%
 - **Optional extras**: execution mode (`[plan]`), estimated cost, running background tasks and subagents
@@ -19,17 +19,25 @@ Install both plugins (oh-my-status and oh-my-knowledge) in one command:
 agy plugin install https://github.com/ChangChunCheng/oh-my-agy
 ```
 
+Or install **oh-my-status** only:
+
+```
+agy plugin install https://github.com/ChangChunCheng/oh-my-agy/tree/main/plugins/oh-my-status
+```
+
 Then run:
 
 ```
 /status-setup
 ```
 
-The plugin's `SessionStart` hook copies the runtime to `~/.gemini/oh-my-agy/status/` and creates `~/.gemini/oh-my-agy/status.conf` on first run. `/status-setup` then adds this to `~/.gemini/antigravity-cli/settings.json` (after asking, keeping every other setting and saving a `settings.json.bak`):
+The plugin's `SessionStart` hook copies the runtime to `~/.gemini/oh-my-agy/status/` and creates `~/.gemini/oh-my-agy/status.conf` on first run. `/status-setup` then adds the `statusLine` entry to `~/.gemini/antigravity-cli/settings.json` (after asking, keeping every other setting and saving a `settings.json.bak`):
 
 ```json
 "statusLine": { "type": "command", "command": "bash ~/.gemini/oh-my-agy/status/statusline.sh" }
 ```
+
+On Windows (Git Bash), `configure.sh` automatically resolves `Git\bin\bash.exe` and the absolute Windows path to `statusline.sh` so `agy` does not hit WSL's `bash.exe` or an unexpanded `~`.
 
 Changes apply on the next statusline refresh; no restart is needed.
 
@@ -48,7 +56,7 @@ Changes apply on the next statusline refresh; no restart is needed.
 | Key | Default | Meaning |
 | --- | --- | --- |
 | `THEME` | `catppuccin` | One of the 9 themes |
-| `LAYOUT` | `fancy` | One of the 6 layouts |
+| `LAYOUT` | `fancy` | One of the 7 layouts |
 | `ACCOUNT_SHOW` | `true` | Show the account segment |
 | `ACCOUNT_FORMAT` | `user` | `user` (part of the email before `@`), `email`, `tier`, `user+tier`, `email+tier` |
 | `ACCOUNT_ICON` | (icon) | Uncomment to override; `""` hides the icon |
