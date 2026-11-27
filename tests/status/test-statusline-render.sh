@@ -65,7 +65,7 @@ assert_contains "$out" "gemini 5h:50% 7d:10%  3p 5h:20% 7d:5%  alpha 7d:40%  zet
 end_test
 
 start_test "QUOTA_FAMILY=all: renders both groups on one line in every layout"
-for ln in default fancy fancy2 mygo pure powerline; do
+for ln in default fancy mygo pure powerline; do
   out=$(render "$(base_json)" "LAYOUT=$ln")
   qline=$(printf '%s\n' "$out" | grep 'gemini' | head -n 1)
   assert_contains "$qline" "gemini" "$ln shows gemini"
@@ -73,6 +73,15 @@ for ln in default fancy fancy2 mygo pure powerline; do
   assert_contains "$qline" "50%" "$ln shows gemini 5h"
   assert_contains "$qline" "20%" "$ln shows 3p 5h"
 done
+out=$(render "$(base_json)" 'LAYOUT=fancy2')
+qline=$(printf '%s\n' "$out" | grep 'ctx' | head -n 1)
+assert_contains "$qline" "50%" "fancy2 shows primary gemini 5h on ctx line"
+assert_contains "$qline" "10%" "fancy2 shows primary gemini 7d on ctx line"
+assert_contains "$qline" "│  3p 5h "$'\xf3\xb0\xaa\x9f'" 20% 7d "$'\xf3\xb0\x84\xb0'" 5%" "fancy2 shows secondary 3p as 9-step circle meters on ctx line"
+out=$(render "$(jqp '.model={"id":"Claude Sonnet 4","display_name":"Claude Sonnet 4"}')" 'LAYOUT=fancy2')
+qline=$(printf '%s\n' "$out" | grep 'ctx' | head -n 1)
+assert_contains "$qline" "20%" "fancy2 on Claude promotes 3p 5h to bars"
+assert_contains "$qline" "│  gemini 5h "$'\xf3\xb0\xaa\xa1'" 50% 7d "$'\xf3\xb0\xaa\x9e'" 10%" "fancy2 on Claude demotes gemini to 9-step circle meters"
 out=$(render "$(base_json)" 'LAYOUT=minimal')
 assert_contains "$out" "gemini 50%/10%" "minimal gemini pair"
 assert_contains "$out" "3p 20%/5%" "minimal 3p pair"

@@ -1,7 +1,7 @@
-# Fancy2 layout - fancy layout with a dedicated CLI-colored mode line below the meters
+# Fancy2 layout - fancy layout with primary quota on ctx row, secondary as circle meters, and a CLI-colored mode line
 # Line 1: model and directory (always first)
 # Line 2: git details with line stats (only if in repo)
-# Line 3: usage meters with labels (ctx + 5h + 7d)
+# Line 3: ctx + primary 5h/7d bars (| secondary family circle meters when QUOTA_FAMILY=all)
 # Line 4: cycle mode (robot icon + CLI colors + shift+tab hint) and extras
 
 RESET='\033[0m'
@@ -20,6 +20,31 @@ meter() {
   for ((i=0; i<filled; i++)); do bar_str+="━"; done
   for ((i=0; i<empty; i++)); do bar_str+="╌"; done
   printf -v REPLY "${C_SUBTEXT}%s ${color}%s${RESET} %d%%" "$label" "$bar_str" "$pct"
+}
+
+circle_meter() {
+  local pct=${1:-0} suffix=${2-}
+  local color step
+  if [ "$pct" -le 30 ]; then color="$C_GREEN"
+  elif [ "$pct" -le 80 ]; then color="$C_YELLOW"
+  else color="$C_RED"
+  fi
+  # 9-step Nerd Font v3 circle progress: nf-md-circle_outline + nf-md-circle_slice_1..8
+  local -a icons=(
+    $'\xf3\xb0\x84\xb0' # 0/8 U+F0130 nf-md-checkbox_blank_circle_outline
+    $'\xf3\xb0\xaa\x9e' # 1/8 U+F0A9E nf-md-circle_slice_1
+    $'\xf3\xb0\xaa\x9f' # 2/8 U+F0A9F nf-md-circle_slice_2
+    $'\xf3\xb0\xaa\xa0' # 3/8 U+F0AA0 nf-md-circle_slice_3
+    $'\xf3\xb0\xaa\xa1' # 4/8 U+F0AA1 nf-md-circle_slice_4
+    $'\xf3\xb0\xaa\xa2' # 5/8 U+F0AA2 nf-md-circle_slice_5
+    $'\xf3\xb0\xaa\xa3' # 6/8 U+F0AA3 nf-md-circle_slice_6
+    $'\xf3\xb0\xaa\xa4' # 7/8 U+F0AA4 nf-md-circle_slice_7
+    $'\xf3\xb0\xaa\xa5' # 8/8 U+F0AA5 nf-md-circle_slice_8
+  )
+  step=$(( (pct * 8 + 50) / 100 ))
+  [ "$step" -lt 0 ] && step=0
+  [ "$step" -gt 8 ] && step=8
+  printf -v REPLY "${color}%s${RESET} %d%%%s" "${icons[step]}" "$pct" "$suffix"
 }
 
 render() {
@@ -49,26 +74,52 @@ render() {
     [ -n "$LINE_STATS" ] && LINE2+=" ${C_SUBTEXT}│${RESET} ${LINE_STATS} ${C_SUBTEXT}lines${RESET}"
   fi
 
-  # Line 3: usage meters (+ Line 4: all quota groups on one line when QUOTA_ALL=1)
-  meter "${CTX_PCT:-0}" "ctx" 12; local LINE3=$REPLY
-  local LINE4=""
-  if [ "${QUOTA_ALL:-0}" = 1 ]; then
-    local i qseg p5 p7 bw=12
-    [ "${QUOTA_COUNT:-0}" -gt 1 ] && bw=8
+  # Line 3: ctx + active family's 5h/7d bars, followed by "│ <other> <5h circle> <7d circle>" when QUOTA_ALL=1
+  local bw=12
+  if [ "${QUOTA_ALL:-0}" = 1 ] && [ "${QUOTA_COUNT:-0}" -gt 1 ]; then bw=10; fi
+  meter "${CTX_PCT:-0}" "ctx" "$bw"; local LINE3=$REPLY
+
+  if [ "${QUOTA_ALL:-0}" = 1 ] && [ "${QUOTA_COUNT:-0}" -gt 0 ]; then
+    local want_fam="3p" had_ncm=0
+    shopt -q nocasematch && had_ncm=1
+    shopt -s nocasematch
+    if [ -z "${MODEL-}" ] || [[ "$MODEL" == *gemini* ]] || [[ "$MODEL" == *orchestrator* ]]; then
+      want_fam="gemini"
+    fi
+    [ "$had_ncm" = 1 ] || shopt -u nocasematch
+
+    local pri=-1 i p5 p7
     for ((i=0; i<${QUOTA_COUNT:-0}; i++)); do
-      qseg="${C_SUBTEXT}${QUOTA_FAMILIES[i]}${RESET}"
+      if [ "${QUOTA_FAMILIES[i]}" = "$want_fam" ]; then pri=$i; break; fi
+    done
+    [ "$pri" -lt 0 ] && pri=0
+
+    # Primary family: 5h & 7d bars inline next to ctx (same layout as QUOTA_FAMILY=auto)
+    p5=${QUOTA_5H_PCT[pri]}; p7=${QUOTA_7D_PCT[pri]}
+    if [ -n "$p5" ]; then meter "$p5" "5h" "$bw"; LINE3+="  ${REPLY}${QUOTA_5H_SUFFIX[pri]}"; fi
+    if [ -n "$p7" ]; then meter "$p7" "7d" "$bw"; LINE3+="  ${REPLY}${QUOTA_7D_SUFFIX[pri]}"; fi
+
+    # Secondary families: │ <family> 5h <circle> <pct>% 7d <circle> <pct>%
+    local oseg
+    for ((i=0; i<${QUOTA_COUNT:-0}; i++)); do
+      [ "$i" -eq "$pri" ] && continue
       p5=${QUOTA_5H_PCT[i]}; p7=${QUOTA_7D_PCT[i]}
-      if [ -n "$p5" ]; then meter "$p5" "5h" "$bw"; qseg+=" ${REPLY}${QUOTA_5H_SUFFIX[i]}"; fi
-      if [ -n "$p7" ]; then meter "$p7" "7d" "$bw"; qseg+=" ${REPLY}${QUOTA_7D_SUFFIX[i]}"; fi
-      LINE4="${LINE4:+${LINE4} ${C_SUBTEXT}│${RESET} }${qseg}"
+      oseg="${C_SUBTEXT}${QUOTA_FAMILIES[i]}${RESET}"
+      if [ -n "$p5" ]; then
+        circle_meter "$p5" "${QUOTA_5H_SUFFIX[i]}"; oseg+=" ${C_SUBTEXT}5h${RESET} ${REPLY}"
+      fi
+      if [ -n "$p7" ]; then
+        circle_meter "$p7" "${QUOTA_7D_SUFFIX[i]}"; oseg+=" ${C_SUBTEXT}7d${RESET} ${REPLY}"
+      fi
+      LINE3+="  ${C_SUBTEXT}│${RESET}  ${oseg}"
     done
   else
     if [ -n "${RATE5_PCT:-}" ]; then meter "$RATE5_PCT" " 5h" 12; LINE3+="  ${REPLY}${RATE5_SUFFIX}"; fi
     if [ -n "${RATE7_PCT:-}" ]; then meter "$RATE7_PCT" " 7d" 12; LINE3+="  ${REPLY}${RATE7_SUFFIX}"; fi
   fi
 
-  # Line 5: cycle mode (with CLI-matched colors) and remaining extras below the meters.
-  local show_mode="${SHOW_MODE-}" mode_seg="" LINE5=""
+  # Line 4: cycle mode (with CLI-matched colors) and remaining extras below the meters.
+  local show_mode="${SHOW_MODE-}" mode_seg="" LINE4=""
   if [ "$show_mode" = true ] && [ -n "${MODE-}" ]; then
     local mode_icon=$'\xf3\xb0\x9a\xa9' # nf-md-robot (U+F06A9)
     local mode_color
@@ -83,13 +134,12 @@ render() {
   fi
   local SHOW_MODE=false
   oma_extras
-  LINE5="$mode_seg"
+  LINE4="$mode_seg"
   if [ -n "$REPLY" ]; then
-    LINE5="${LINE5:+${LINE5}  }${REPLY}"
+    LINE4="${LINE4:+${LINE4}  }${REPLY}"
   fi
   echo -e "$LINE1"
   if [ -n "$LINE2" ]; then echo -e "$LINE2"; fi
   echo -e "$LINE3"
   if [ -n "$LINE4" ]; then echo -e "$LINE4"; fi
-  if [ -n "$LINE5" ]; then echo -e "$LINE5"; fi
 }
