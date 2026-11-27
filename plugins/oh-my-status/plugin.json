@@ -3,7 +3,7 @@
   "name": "oh-my-status",
   "displayName": "Oh My Status",
   "version": "1.0.0-rc.2",
-  "description": "Themeable statusline for Antigravity CLI with 9 color themes, 6 layouts, cached git stats, context and quota meters.",
+  "description": "Themeable statusline for Antigravity CLI with 9 color themes, 7 layouts, cached git stats, context and quota meters.",
   "logo": "assets/logo.svg",
   "suggestedPrompts": [
     "Set up the oh-my-status statusline in my CLI settings",

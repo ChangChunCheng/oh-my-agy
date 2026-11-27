@@ -29,6 +29,7 @@ The helper lives in the installed runtime at `~/.gemini/oh-my-agy/status/set-the
 - `powerline`: arrow separators (needs a Nerd Font)
 - `pure`: plain text, no icons, no Nerd Font needed
 - `fancy`: three lines, detailed
+- `fancy2`: fancy layout with a dedicated CLI-colored mode line below the meters
 - `mygo`: band-inspired, musical separators
 
 Themes: catppuccin, dracula, nord, gruvbox, tokyonight, onedark, solarized, rosepine, mygo.

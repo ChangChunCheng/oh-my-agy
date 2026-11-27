@@ -1,0 +1,95 @@
+# Fancy2 layout - fancy layout with a dedicated CLI-colored mode line below the meters
+# Line 1: model and directory (always first)
+# Line 2: git details with line stats (only if in repo)
+# Line 3: usage meters with labels (ctx + 5h + 7d)
+# Line 4: cycle mode (robot icon + CLI colors + shift+tab hint) and extras
+
+RESET='\033[0m'
+
+meter() {
+  local pct=${1:-0} label=$2 width=${3:-12}
+  local filled=$(( pct * width / 100 ))
+  [ "$filled" -gt "$width" ] && filled=$width
+  local empty=$(( width - filled ))
+  local color i
+  if [ "$pct" -le 30 ]; then color="$C_GREEN"
+  elif [ "$pct" -le 80 ]; then color="$C_YELLOW"
+  else color="$C_RED"
+  fi
+  local bar_str=""
+  for ((i=0; i<filled; i++)); do bar_str+="━"; done
+  for ((i=0; i<empty; i++)); do bar_str+="╌"; done
+  printf -v REPLY "${C_SUBTEXT}%s ${color}%s${RESET} %d%%" "$label" "$bar_str" "$pct"
+}
+
+render() {
+  local FOLDER_ICON=$'\xef\x81\xbb'
+  local BRANCH_ICON=$'\xee\x82\xa0'
+  local DOT="·"
+
+  # Line 1: model + dir
+  local LINE1="${C_PRIMARY}${MODEL}${RESET}"
+  [ -n "$ACCOUNT" ] && LINE1+=" ${C_SUBTEXT}${DOT}${RESET} ${C_SUBTEXT}${ACCOUNT_ICON:+$ACCOUNT_ICON }${ACCOUNT}${RESET}"
+  LINE1+=" ${C_SUBTEXT}${DOT}${RESET} ${C_SECONDARY}${FOLDER_ICON} ${DIR}${RESET}"
+
+  # Line 2: git info (only if in repo)
+  local LINE2=""
+  if [ -n "$BRANCH" ]; then
+    LINE2="${C_ACCENT}${BRANCH_ICON} ${BRANCH}${RESET}"
+
+    local FILE_STATS=""
+    [ "$ADD_FILES" -gt 0 ] 2>/dev/null && FILE_STATS+=" ${C_GREEN}+${ADD_FILES} new${RESET}"
+    [ "$MOD_FILES" -gt 0 ] 2>/dev/null && FILE_STATS+=" ${C_YELLOW}~${MOD_FILES} mod${RESET}"
+    [ "$DEL_FILES" -gt 0 ] 2>/dev/null && FILE_STATS+=" ${C_RED}-${DEL_FILES} del${RESET}"
+    [ -n "$FILE_STATS" ] && LINE2+=" ${C_SUBTEXT}│${RESET}${FILE_STATS}"
+
+    local LINE_STATS=""
+    [ "$LINES_ADD" -gt 0 ] 2>/dev/null && LINE_STATS+="${C_GREEN}+${LINES_ADD}${RESET}"
+    [ "$LINES_DEL" -gt 0 ] 2>/dev/null && LINE_STATS+=" ${C_RED}-${LINES_DEL}${RESET}"
+    [ -n "$LINE_STATS" ] && LINE2+=" ${C_SUBTEXT}│${RESET} ${LINE_STATS} ${C_SUBTEXT}lines${RESET}"
+  fi
+
+  # Line 3: usage meters (+ Line 4: all quota groups on one line when QUOTA_ALL=1)
+  meter "${CTX_PCT:-0}" "ctx" 12; local LINE3=$REPLY
+  local LINE4=""
+  if [ "${QUOTA_ALL:-0}" = 1 ]; then
+    local i qseg p5 p7 bw=12
+    [ "${QUOTA_COUNT:-0}" -gt 1 ] && bw=8
+    for ((i=0; i<${QUOTA_COUNT:-0}; i++)); do
+      qseg="${C_SUBTEXT}${QUOTA_FAMILIES[i]}${RESET}"
+      p5=${QUOTA_5H_PCT[i]}; p7=${QUOTA_7D_PCT[i]}
+      if [ -n "$p5" ]; then meter "$p5" "5h" "$bw"; qseg+=" ${REPLY}${QUOTA_5H_SUFFIX[i]}"; fi
+      if [ -n "$p7" ]; then meter "$p7" "7d" "$bw"; qseg+=" ${REPLY}${QUOTA_7D_SUFFIX[i]}"; fi
+      LINE4="${LINE4:+${LINE4} ${C_SUBTEXT}│${RESET} }${qseg}"
+    done
+  else
+    if [ -n "${RATE5_PCT:-}" ]; then meter "$RATE5_PCT" " 5h" 12; LINE3+="  ${REPLY}${RATE5_SUFFIX}"; fi
+    if [ -n "${RATE7_PCT:-}" ]; then meter "$RATE7_PCT" " 7d" 12; LINE3+="  ${REPLY}${RATE7_SUFFIX}"; fi
+  fi
+
+  # Line 5: cycle mode (with CLI-matched colors) and remaining extras below the meters.
+  local show_mode="${SHOW_MODE-}" mode_seg="" LINE5=""
+  if [ "$show_mode" = true ] && [ -n "${MODE-}" ]; then
+    local mode_icon=$'\xf3\xb0\x9a\xa9' # nf-md-robot (U+F06A9)
+    local mode_color
+    case "$MODE" in
+      auto)                   mode_color='\033[38;2;229;192;123m' ;; # #e5c07b
+      plan)                   mode_color='\033[38;2;97;175;239m'  ;; # #61afef
+      accept-edits)           mode_color='\033[38;2;152;195;121m' ;; # #98c379
+      default|request-review) mode_color="${C_SUBTEXT-}" ;;
+      *)                      mode_color="${C_ACCENT-}" ;;
+    esac
+    mode_seg="${mode_color}${mode_icon}  ${MODE} mode on${RESET-} ${C_SUBTEXT-}(shift+tab to cycle)${RESET-}"
+  fi
+  local SHOW_MODE=false
+  oma_extras
+  LINE5="$mode_seg"
+  if [ -n "$REPLY" ]; then
+    LINE5="${LINE5:+${LINE5}  }${REPLY}"
+  fi
+  echo -e "$LINE1"
+  if [ -n "$LINE2" ]; then echo -e "$LINE2"; fi
+  echo -e "$LINE3"
+  if [ -n "$LINE4" ]; then echo -e "$LINE4"; fi
+  if [ -n "$LINE5" ]; then echo -e "$LINE5"; fi
+}

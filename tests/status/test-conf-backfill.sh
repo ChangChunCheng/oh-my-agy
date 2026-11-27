@@ -207,17 +207,44 @@ printf '{"statusLine":true}' > "$OMA_AGY_SETTINGS"; assert_eq "other" "$(cf stat
 printf 'not json' > "$OMA_AGY_SETTINGS"; cf status >/dev/null 2>&1; [ $? -ne 0 ] || { echo "    FAIL: invalid json accepted" >&2; TEST_FAILED=1; }
 end_test
 
-start_test "configure install: creates missing file; preserves other keys and writes .bak"
-cf install >/dev/null; assert_eq "ours" "$(cf status | sed -n 1p)" "created"
+start_test "configure install: creates missing file; preserves other keys and writes .bak (POSIX)"
+OMA_OSTYPE=darwin24 cf install >/dev/null; assert_eq "ours" "$(OMA_OSTYPE=darwin24 cf status | sed -n 1p)" "created"
 assert_eq "command" "$("$REAL_JQ" -r .statusLine.type "$OMA_AGY_SETTINGS")" "type"
 assert_eq "bash ~/.gemini/oh-my-agy/status/statusline.sh" "$("$REAL_JQ" -r .statusLine.command "$OMA_AGY_SETTINGS")" "command"
 printf '{"model":"x","nested":{"a":[1,2]},"statusLine":{"command":"old.sh","padding":1}}' > "$OMA_AGY_SETTINGS"
 orig=$(cat "$OMA_AGY_SETTINGS")
-cf install >/dev/null
+OMA_OSTYPE=darwin24 cf install >/dev/null
 assert_eq "x" "$("$REAL_JQ" -r .model "$OMA_AGY_SETTINGS")" "model kept"
 assert_eq "[1,2]" "$("$REAL_JQ" -c .nested.a "$OMA_AGY_SETTINGS")" "nested kept"
-assert_eq "ours" "$(cf status | sed -n 1p)" "now ours"
+assert_eq "ours" "$(OMA_OSTYPE=darwin24 cf status | sed -n 1p)" "now ours"
 assert_eq "$orig" "$(cat "$OMA_AGY_SETTINGS.bak")" "backup is the previous file"
+end_test
+
+start_test "configure install (Windows): resolves Git Bash and absolute script path, status=ours"
+FAKE_GIT="$OMA_TEST_ROOT/Git"; mkdir -p "$FAKE_GIT/bin" "$FAKE_GIT/usr/bin"
+: > "$FAKE_GIT/bin/bash.exe"; : > "$FAKE_GIT/usr/bin/bash.exe"
+OMA_OSTYPE=msys cf install >/dev/null
+win_cmd=$("$REAL_JQ" -r .statusLine.command "$OMA_AGY_SETTINGS")
+assert_not_contains "$win_cmd" "~/" "no unexpanded tilde on Windows"
+assert_contains "$win_cmd" "/status/statusline.sh" "absolute script path"
+assert_eq "ours" "$(OMA_OSTYPE=msys cf status | sed -n 1p)" "status recognizes custom OMA_HOME as ours"
+# Verify sibling bin/bash.exe is preferred over usr/bin/bash.exe via _oma_win_bash_path
+win_pref=$(FAKE_GIT="$FAKE_GIT" OMA_TEST_LIB_ONLY=1 OMA_OSTYPE=msys OMA_HOME="$OMA_HOME" bash -c '
+  . "$1"
+  command() { if [ "$1" = -v ] && [ "$2" = bash ]; then printf "%s\n" "$FAKE_GIT/usr/bin/bash.exe"; else builtin command "$@"; fi; }
+  _oma_win_bash_path
+' _ "$PLUGIN/scripts/configure.sh" 2>/dev/null)
+assert_contains "$win_pref" "bin" "resolved bin path"
+assert_not_contains "$win_pref" "usr" "preferred Git/bin/bash.exe over Git/usr/bin/bash.exe"
+# Spaces in both bash and script paths fall back cleanly without broken outer quotes
+SP_HOME="$OMA_TEST_ROOT/User Space/.gemini/oh-my-agy"
+mkdir -p "$SP_HOME/status"
+both_sp=$(OMA_TEST_LIB_ONLY=1 OMA_OSTYPE=msys OMA_HOME="$SP_HOME" OMA_BASH_BIN='C:/Program Files/Git/bin/bash.exe' bash -c '
+  . "$1"
+  command() { if [ "$1" = -v ] && [ "$2" = cygpath ]; then return 1; else builtin command "$@"; fi; }
+  _oma_default_status_cmd
+' _ "$PLUGIN/scripts/configure.sh" 2>/dev/null)
+assert_contains "$both_sp" 'call "C:\Program Files\Git\bin\bash.exe" "' "call quoting when both paths have spaces"
 end_test
 
 start_test "configure install: invalid JSON is left untouched"
@@ -281,15 +308,16 @@ end_test
 # ---------------- preview.sh ----------------
 start_test "preview.sh: themes, layouts, all; hint line; works from repo and installed copy"
 install_rt
-out=$(OMA_HOME="$OMA_HOME" bash "$PLUGIN/scripts/preview.sh" all | sed -E 's/\x1b\[[0-9;]*[a-zA-Z]//g')
+out=$(OMA_HOME="$OMA_HOME" bash "$PLUGIN/scripts/preview.sh" all | sed -E $'s/\033\\[[0-9;]*[a-zA-Z]//g')
 assert_contains "$out" "Gemini 4 Neon (High) [1M]" "demo model"
-assert_contains "$out" "[plan]" "demo mode"
+assert_contains "$out" "[plan]" "demo mode in other layouts"
+assert_contains "$out" "plan mode on (shift+tab to cycle)" "demo mode in fancy2 layout"
 assert_contains "$out" "1 task" "demo task"
 assert_contains "$out" "/status-theme <theme> <layout>" "hint"
-for n in catppuccin rosepine mygo default powerline pure fancy minimal; do assert_contains "$out" "[$n]" "lists $n"; done
-out2=$(OMA_HOME="$OMA_HOME" bash "$OMA_HOME/status/preview.sh" all | sed -E 's/\x1b\[[0-9;]*[a-zA-Z]//g')
+for n in catppuccin rosepine mygo default powerline pure fancy fancy2 minimal; do assert_contains "$out" "[$n]" "lists $n"; done
+out2=$(OMA_HOME="$OMA_HOME" bash "$OMA_HOME/status/preview.sh" all | sed -E $'s/\033\\[[0-9;]*[a-zA-Z]//g')
 assert_eq "$out" "$out2" "installed copy gives the same output"
-out=$(OMA_HOME="$OMA_HOME" bash "$PLUGIN/scripts/preview.sh" themes | sed -E 's/\x1b\[[0-9;]*[a-zA-Z]//g')
+out=$(OMA_HOME="$OMA_HOME" bash "$PLUGIN/scripts/preview.sh" themes | sed -E $'s/\033\\[[0-9;]*[a-zA-Z]//g')
 assert_not_contains "$out" "Available Layouts" "themes only"
 end_test
 
