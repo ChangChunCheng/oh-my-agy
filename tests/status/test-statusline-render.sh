@@ -93,6 +93,10 @@ out=$(render "$(jqp '.model={"id":"Claude Sonnet 4","display_name":"Claude Sonne
 qline=$(printf '%s\n' "$out" | grep 'ctx' | head -n 1)
 assert_contains "$qline" "20%" "fancy2 on Claude promotes 3p 5h to bars"
 assert_contains "$qline" "│  gemini 5h "$'\xf3\xb0\xaa\xa1'" 50% 7d "$'\xf3\xb0\xaa\x9e'" 10%" "fancy2 on Claude demotes gemini to 9-step circle meters"
+out=$(render "$(jqp '.model={"id":"gemini-2.5-pro","display_name":"Custom Model"}')" 'LAYOUT=fancy2')
+qline=$(printf '%s\n' "$out" | grep 'ctx' | head -n 1)
+assert_contains "$qline" "50%" "fancy2 follows model.id for primary family even when display_name differs"
+assert_contains "$qline" "│  3p 5h "$'\xf3\xb0\xaa\x9f'" 20%" "fancy2 keeps 3p secondary when model.id is gemini"
 out=$(render "$(base_json)" 'LAYOUT=minimal')
 assert_contains "$out" "gemini 50%/10%" "minimal gemini pair"
 assert_contains "$out" "3p 20%/5%" "minimal 3p pair"

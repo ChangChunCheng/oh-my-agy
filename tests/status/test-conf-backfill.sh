@@ -199,7 +199,10 @@ end_test
 start_test "configure status: ours / other / non-object"
 install_rt
 printf '{"statusLine":{"type":"command","command":"bash ~/.gemini/oh-my-agy/status/statusline.sh"}}' > "$OMA_AGY_SETTINGS"
-assert_eq "ours" "$(cf status | sed -n 1p)" "ours"
+assert_eq "ours" "$(OMA_OSTYPE=darwin24 cf status | sed -n 1p)" "ours (POSIX)"
+assert_eq "other" "$(OMA_OSTYPE=msys cf status | sed -n 1p)" "legacy tilde command flags as other on Windows for repair"
+printf '{"statusLine":{"type":"command","command":"bash /a/custom/status/statusline.sh"}}' > "$OMA_AGY_SETTINGS"
+assert_eq "ours" "$(OMA_OSTYPE=darwin24 OMA_HOME=/a/custom bash "$PLUGIN/scripts/configure.sh" status | sed -n 1p)" "POSIX single-letter top-level path not mangled"
 printf '{"statusLine":{"type":"command","command":"~/mine.sh"}}' > "$OMA_AGY_SETTINGS"
 out=$(cf status); assert_eq "other" "$(printf '%s\n' "$out" | sed -n 1p)" "other"; assert_contains "$out" "~/mine.sh" "prints current JSON"
 printf '{"statusLine":"~/mine.sh"}' > "$OMA_AGY_SETTINGS"; assert_eq "other" "$(cf status | sed -n 1p)" "string statusLine"
@@ -231,11 +234,31 @@ assert_eq "ours" "$(OMA_OSTYPE=msys cf status | sed -n 1p)" "status recognizes c
 # Verify sibling bin/bash.exe is preferred over usr/bin/bash.exe via _oma_win_bash_path
 win_pref=$(FAKE_GIT="$FAKE_GIT" OMA_TEST_LIB_ONLY=1 OMA_OSTYPE=msys OMA_HOME="$OMA_HOME" bash -c '
   . "$1"
-  command() { if [ "$1" = -v ] && [ "$2" = bash ]; then printf "%s\n" "$FAKE_GIT/usr/bin/bash.exe"; else builtin command "$@"; fi; }
-  _oma_win_bash_path
+  _oma_win_bash_path "$FAKE_GIT/usr/bin/bash.exe"
 ' _ "$PLUGIN/scripts/configure.sh" 2>/dev/null)
 assert_contains "$win_pref" "bin" "resolved bin path"
 assert_not_contains "$win_pref" "usr" "preferred Git/bin/bash.exe over Git/usr/bin/bash.exe"
+# Verify running $BASH is preferred over a fake bash earlier on PATH (e.g. WSL System32\bash.exe)
+FAKE_WSL="$OMA_TEST_ROOT/fakewsl"; mkdir -p "$FAKE_WSL"
+printf '#!/bin/sh\nexit 0\n' > "$FAKE_WSL/bash"; chmod +x "$FAKE_WSL/bash"
+win_self=$(PATH="$FAKE_WSL:$PATH" OMA_TEST_LIB_ONLY=1 OMA_OSTYPE=msys OMA_HOME="$OMA_HOME" bash -c '
+  . "$1"
+  _oma_win_bash_path
+' _ "$PLUGIN/scripts/configure.sh" 2>/dev/null)
+assert_not_contains "$win_self" "fakewsl" "prefers running \$BASH over PATH bash"
+# Trailing slash and Windows backslashes in OMA_HOME preserve the leaf dir when shortening parent
+trail_sp=$(OMA_TEST_LIB_ONLY=1 OMA_OSTYPE=msys OMA_HOME='/c/Users/User Space/.gemini/oh-my-agy/' bash -c '
+  . "$1"
+  cygpath() { [ "$1" = -d ] && printf "C:\\Users\\USERSP~1\\.gemini\n" || printf "%s\n" "$2"; }
+  _oma_win_script_path 1
+' _ "$PLUGIN/scripts/configure.sh" 2>/dev/null)
+assert_eq "C:/Users/USERSP~1/.gemini/oh-my-agy/status/statusline.sh" "$trail_sp" "trailing slash preserves leaf dir"
+bs_sp=$(OMA_TEST_LIB_ONLY=1 OMA_OSTYPE=msys OMA_HOME='C:\Users\User Space\.gemini\oh-my-agy\' bash -c '
+  . "$1"
+  cygpath() { [ "$1" = -d ] && printf "C:\\Users\\USERSP~1\\.gemini\n" || printf "%s\n" "$2"; }
+  _oma_win_script_path 1
+' _ "$PLUGIN/scripts/configure.sh" 2>/dev/null)
+assert_eq "C:/Users/USERSP~1/.gemini/oh-my-agy/status/statusline.sh" "$bs_sp" "backslash OMA_HOME preserves leaf dir"
 # Spaces in both bash and script paths fall back cleanly without broken outer quotes
 SP_HOME="$OMA_TEST_ROOT/User Space/.gemini/oh-my-agy"
 mkdir -p "$SP_HOME/status"

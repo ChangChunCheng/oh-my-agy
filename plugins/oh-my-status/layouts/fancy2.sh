@@ -80,15 +80,7 @@ render() {
   meter "${CTX_PCT:-0}" "ctx" "$bw"; local LINE3=$REPLY
 
   if [ "${QUOTA_ALL:-0}" = 1 ] && [ "${QUOTA_COUNT:-0}" -gt 0 ]; then
-    local want_fam="3p" had_ncm=0
-    shopt -q nocasematch && had_ncm=1
-    shopt -s nocasematch
-    if [ -z "${MODEL-}" ] || [[ "$MODEL" == *gemini* ]] || [[ "$MODEL" == *orchestrator* ]]; then
-      want_fam="gemini"
-    fi
-    [ "$had_ncm" = 1 ] || shopt -u nocasematch
-
-    local pri=-1 i p5 p7
+    local want_fam="${QUOTA_PRIMARY:-gemini}" pri=-1 i p5 p7
     for ((i=0; i<${QUOTA_COUNT:-0}; i++)); do
       if [ "${QUOTA_FAMILIES[i]}" = "$want_fam" ]; then pri=$i; break; fi
     done
@@ -114,8 +106,8 @@ render() {
       LINE3+="  ${C_SUBTEXT}│${RESET}  ${oseg}"
     done
   else
-    if [ -n "${RATE5_PCT:-}" ]; then meter "$RATE5_PCT" " 5h" 12; LINE3+="  ${REPLY}${RATE5_SUFFIX}"; fi
-    if [ -n "${RATE7_PCT:-}" ]; then meter "$RATE7_PCT" " 7d" 12; LINE3+="  ${REPLY}${RATE7_SUFFIX}"; fi
+    if [ -n "${RATE5_PCT:-}" ]; then meter "$RATE5_PCT" "5h" 12; LINE3+="  ${REPLY}${RATE5_SUFFIX}"; fi
+    if [ -n "${RATE7_PCT:-}" ]; then meter "$RATE7_PCT" "7d" 12; LINE3+="  ${REPLY}${RATE7_SUFFIX}"; fi
   fi
 
   # Line 4: cycle mode (with CLI-matched colors) and remaining extras below the meters.

@@ -285,6 +285,7 @@ _oma_read_status_fields() {
   IFS= read -r -d '' RATE7_PCT
   IFS= read -r -d '' RATE7_SECS
   IFS= read -r -d '' QUOTA_ROWS
+  IFS= read -r -d '' QUOTA_PRIMARY
   IFS= read -r -d '' ACC_EMAIL
   IFS= read -r -d '' ACC_TIER
   IFS= read -r -d '' MODE
@@ -348,6 +349,7 @@ _OMA_JQ_FILTER='
     ((.context_window.context_window_size // 0) | num),
     ($b5 | used), ($b5 | secs), ($b7 | used), ($b7 | secs),
     $qrows,
+    $f,
     (.email | clean | esc),
     (.plan_tier | clean | esc),
     (.cycle_mode | clean | esc),
@@ -367,7 +369,7 @@ _OMA_JQ_FILTER='
 parse_status_json() {
   JSON_OK=""; SESSION_ID=""; MODEL=""; DIR=""; CTX_PCT=""; CTX_SIZE=""
   RATE5_PCT=""; RATE5_SECS=""; RATE7_PCT=""; RATE7_SECS=""; QUOTA_ROWS=""
-  QUOTA_ALL=0; QUOTA_COUNT=0
+  QUOTA_PRIMARY=""; QUOTA_ALL=0; QUOTA_COUNT=0
   QUOTA_FAMILIES=(); QUOTA_5H_PCT=(); QUOTA_5H_SECS=(); QUOTA_7D_PCT=(); QUOTA_7D_SECS=()
   ACC_EMAIL=""; ACC_TIER=""; MODE=""; COST=""; TASKS=""; AGENTS=""
   if [ $# -gt 0 ]; then

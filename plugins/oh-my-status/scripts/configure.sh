@@ -14,6 +14,13 @@ if [ -z "${OMA_CONF_TEMPLATE:-}" ]; then
 fi
 [ -r "$SCRIPT_DIR/lib/conf-keys.sh" ] && . "$SCRIPT_DIR/lib/conf-keys.sh"
 
+_oma_is_windows() {
+  case "${OMA_OSTYPE:-${OSTYPE:-}}" in
+    msys*|cygwin*|mingw*|win*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 # Pure-bash fallback: /<letter>/rest -> <UPPER>:/rest when cygpath is absent.
 _oma_to_win_m() {
   local p="$1"
@@ -33,8 +40,10 @@ _oma_to_win_m() {
 
 # Resolve the Git Bash wrapper on Windows, preferring <Git>/bin/bash.exe over
 # <Git>/usr/bin/bash.exe (the wrapper adds /usr/bin to PATH for cmd.exe callers).
+# Uses $BASH (the running shell) rather than PATH lookup so WSL System32\bash.exe
+# cannot hijack the path. Optional $1 overrides detection for tests.
 _oma_win_bash_path() {
-  local raw="${OMA_BASH_BIN:-$(command -v bash 2>/dev/null || printf '/usr/bin/bash')}"
+  local raw="${1:-${OMA_BASH_BIN:-${BASH:-$(command -v bash 2>/dev/null || printf '/usr/bin/bash')}}}"
   local win_m
   win_m=$(_oma_to_win_m "$raw")
   if [ -z "${OMA_BASH_BIN:-}" ]; then
@@ -64,46 +73,51 @@ _oma_win_bash_path() {
 # Never shortens the trailing "<oma_home_name>/status/statusline.sh" segment.
 _oma_win_script_path() {
   local shorten_parent="${1:-0}"
-  local base="${OMA_HOME##*/}"
-  if [ "$shorten_parent" = 1 ] && command -v cygpath >/dev/null 2>&1; then
-    local parent short_parent
-    parent=$(dirname "$OMA_HOME")
+  local home="${OMA_HOME//\\//}"
+  while [ "${#home}" -gt 1 ] && [ "${home%/}" != "$home" ]; do
+    home="${home%/}"
+  done
+  local base="${home##*/}"
+  if [ "$shorten_parent" = 1 ] && [ -n "$base" ] && command -v cygpath >/dev/null 2>&1; then
+    local parent="${home%/*}" short_parent
+    [ "$parent" = "$home" ] && parent="."
+    [ -z "$parent" ] && parent="/"
     short_parent=$(cygpath -d "$parent" 2>/dev/null)
     if [ -n "$short_parent" ]; then
-      printf '%s/%s/status/statusline.sh' "${short_parent//\\//}" "$base"
+      short_parent="${short_parent//\\//}"
+      short_parent="${short_parent%/}"
+      printf '%s/%s/status/statusline.sh' "$short_parent" "$base"
       return 0
     fi
   fi
-  _oma_to_win_m "$OMA_HOME/status/statusline.sh"
+  _oma_to_win_m "$home/status/statusline.sh"
 }
 
 _oma_default_status_cmd() {
-  case "${OMA_OSTYPE:-${OSTYPE:-}}" in
-    msys*|cygwin*|mingw*|win*)
-      local b s
-      b=$(_oma_win_bash_path)
-      s=$(_oma_win_script_path 0)
-      case "$b" in
-        *[[:space:]]*)
-          case "$s" in
-            *[[:space:]]*) s=$(_oma_win_script_path 1) ;;
-          esac ;;
-      esac
-      case "$b" in
-        *[[:space:]]*)
-          case "$s" in
-            *[[:space:]]*) printf 'call "%s" "%s"' "$b" "$s" ;;
-            *) printf '"%s" %s' "$b" "$s" ;;
-          esac ;;
-        *)
-          case "$s" in
-            *[[:space:]]*) printf '%s "%s"' "$b" "$s" ;;
-            *) printf '%s %s' "$b" "$s" ;;
-          esac ;;
-      esac ;;
-    *)
-      printf 'bash ~/.gemini/oh-my-agy/status/statusline.sh' ;;
-  esac
+  if _oma_is_windows; then
+    local b s
+    b=$(_oma_win_bash_path)
+    s=$(_oma_win_script_path 0)
+    case "$b" in
+      *[[:space:]]*)
+        case "$s" in
+          *[[:space:]]*)
+            s=$(_oma_win_script_path 1)
+            case "$s" in
+              *[[:space:]]*) printf 'call "%s" "%s"' "$b" "$s" ;;
+              *) printf '"%s" %s' "$b" "$s" ;;
+            esac ;;
+          *) printf '"%s" %s' "$b" "$s" ;;
+        esac ;;
+      *)
+        case "$s" in
+          *[[:space:]]*) printf '%s "%s"' "$b" "$s" ;;
+          *) printf '%s %s' "$b" "$s" ;;
+        esac ;;
+    esac
+  else
+    printf 'bash ~/.gemini/oh-my-agy/status/statusline.sh'
+  fi
 }
 
 _oma_jq_install_hint() {
@@ -141,11 +155,17 @@ cmd_status() {
     sl=$(jq -c '.statusLine // null' "$OMA_AGY_SETTINGS" 2>/dev/null) \
       || { echo "configure.sh: cannot parse $OMA_AGY_SETTINGS" >&2; exit 3; }
     if [ "$sl" != null ]; then
-      local cur_script="" short_script=""
-      cur_script=$(_oma_win_script_path 0)
-      short_script=$(_oma_win_script_path 1)
-      if jq -e --arg s1 "$cur_script" --arg s2 "$short_script" \
+      local is_win=0 cur_script="" short_script=""
+      if _oma_is_windows; then
+        is_win=1
+        cur_script=$(_oma_win_script_path 0)
+        short_script=$(_oma_win_script_path 1)
+      else
+        cur_script="${OMA_HOME%/}/status/statusline.sh"
+      fi
+      if jq -e --arg s1 "$cur_script" --arg s2 "$short_script" --argjson win "$is_win" \
            '(.statusLine | type == "object") and ((.statusLine.command | type) == "string")
+            and ($win == 0 or ((.statusLine.command | contains("~/")) | not))
             and ((.statusLine.command | contains("oh-my-agy/status/statusline.sh"))
                  or ($s1 != "" and (.statusLine.command | contains($s1)))
                  or ($s2 != "" and (.statusLine.command | contains($s2))))' \
