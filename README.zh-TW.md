@@ -26,7 +26,7 @@
 
 `agy` 的可換主題 statusline。
 
-- 9 種主題（`catppuccin`、`dracula`、`nord`、`gruvbox`、`tokyonight`、`onedark`、`solarized`、`rosepine`、`mygo`）與 6 種版型（`default`、`minimal`、`powerline`、`pure`、`fancy`、`mygo`），隨時切換。
+- 9 種主題（`catppuccin`、`dracula`、`nord`、`gruvbox`、`tokyonight`、`onedark`、`solarized`、`rosepine`、`mygo`）與 7 種版型（`default`、`minimal`、`powerline`、`pure`、`fancy`、`fancy2`、`mygo`），隨時切換。
 - 顯示模型、帳號、目錄、git 分支與變更、context 用量條，以及 5 小時 / 7 天的額度用量條。
 - git 資訊有快取，`.git` 的 refs 或 index 一變動就立即失效；不在 git 儲存庫內的目錄不會執行 `git`。
 
@@ -60,7 +60,19 @@
 agy plugin install https://github.com/ChangChunCheng/oh-my-agy
 ```
 
-用 `agy plugin list` 確認安裝結果。
+如果**只想安裝其中一個外掛**，直接指定 GitHub 子目錄網址即可（`agy` 目前不支援像 Claude Code 那樣的自訂第三方 `@marketplace` 註冊方式，用子目錄網址就能只裝單一外掛）：
+
+```
+# 只裝 oh-my-status
+agy plugin install https://github.com/ChangChunCheng/oh-my-agy/tree/main/plugins/oh-my-status
+
+# 只裝 oh-my-knowledge
+agy plugin install https://github.com/ChangChunCheng/oh-my-agy/tree/main/plugins/oh-my-knowledge
+```
+
+用 `agy plugin list` 確認安裝結果。如果兩個都裝了想停用或移除其中一個，可執行 `agy plugin disable <name>` 或 `agy plugin uninstall <name>`。
+
+> **Windows 注意事項**：`/status-setup`（`configure.sh`）在 Windows 上會自動解析 Git Bash（`Git\bin\bash.exe`）與完整腳本路徑寫入 `settings.json`。但 `agy` 執行外掛的 `hooks.json` 時會使用系統 `PATH` 的 `bash`；若本機同時裝有 WSL，`C:\Windows\System32\bash.exe` 會優先被呼叫並使用 WSL 內的 `/home/<user>`。可在系統 `PATH` 中將 `C:\Program Files\Git\bin` 排在 `System32` 前面，或將已安裝外掛的 `hooks.json` 指令改指向 `C:\PROGRA~1\Git\bin\bash.exe`。
 
 ## 首次使用
 

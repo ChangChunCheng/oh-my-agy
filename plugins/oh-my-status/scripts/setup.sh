@@ -14,7 +14,7 @@
 HOOK=0
 [ "${1-}" = "--hook" ] && HOOK=1
 
-case ${BASH_SOURCE[0]} in */*) SCRIPT_DIR=${BASH_SOURCE[0]%/*} ;; *) SCRIPT_DIR=. ;; esac
+case ${BASH_SOURCE[0]} in */*|*\\*) SCRIPT_DIR=${BASH_SOURCE[0]%[/\\]*} ;; *) SCRIPT_DIR=. ;; esac
 SCRIPT_DIR=$(cd "$SCRIPT_DIR" 2>/dev/null && pwd) || SCRIPT_DIR=.
 PLUGIN_DIR="$SCRIPT_DIR/.."
 OMA_HOME="${OMA_HOME:-$HOME/.gemini/oh-my-agy}"

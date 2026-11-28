@@ -378,14 +378,15 @@ parse_status_json() {
   [ "$JSON_OK" = 1 ] || JSON_OK=""
   if [ "$QUOTA_FAMILY" = all ]; then
     QUOTA_ALL=1
-    local _qf _q5p _q5s _q7p _q7s
+    local _qf _q5p _q5s _q7p _q7s _cr=$'\r'
     while IFS=$'\x1f' read -r _qf _q5p _q5s _q7p _q7s; do
+      _qf="${_qf%"$_cr"}"
       [ -n "$_qf" ] || continue
       QUOTA_FAMILIES+=("$_qf")
-      QUOTA_5H_PCT+=("$_q5p")
-      QUOTA_5H_SECS+=("$_q5s")
-      QUOTA_7D_PCT+=("$_q7p")
-      QUOTA_7D_SECS+=("$_q7s")
+      QUOTA_5H_PCT+=("${_q5p%"$_cr"}")
+      QUOTA_5H_SECS+=("${_q5s%"$_cr"}")
+      QUOTA_7D_PCT+=("${_q7p%"$_cr"}")
+      QUOTA_7D_SECS+=("${_q7s%"$_cr"}")
     done <<< "$QUOTA_ROWS"
     QUOTA_COUNT=${#QUOTA_FAMILIES[@]}
   fi
@@ -527,5 +528,6 @@ resolve_account
 resolve_rate_suffixes
 
 render
+exit 0
 
 fi # end OMA_TEST_LIB_ONLY gate

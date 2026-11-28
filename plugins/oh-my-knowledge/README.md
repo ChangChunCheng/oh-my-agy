@@ -8,9 +8,11 @@ This is the agy port of `oh-my-knowledge` from oh-my-claude.
 
 ## Quick Start
 
-1. Install both plugins (oh-my-status and oh-my-knowledge) in one command: `agy plugin install https://github.com/ChangChunCheng/oh-my-agy`.
+1. Install both plugins (`agy plugin install https://github.com/ChangChunCheng/oh-my-agy`) or **oh-my-knowledge** only (`agy plugin install https://github.com/ChangChunCheng/oh-my-agy/tree/main/plugins/oh-my-knowledge`).
 2. Ask the agent to run the `kb-setup` skill (for example "set up the knowledge base"). It shows the settings, creates the knowledge base (default `~/knowledge`) or recognises an existing one, commits the skeleton, and offers to add the rules include to `~/.gemini/GEMINI.md` (it always asks first and backs the file up).
 3. Start a new conversation: hooks and the session-start note pick the knowledge base up.
+
+> **Sharing an existing `oh-my-claude` KB**: You can point `KNOWLEDGE_DIR` in `~/.gemini/oh-my-agy/knowledge.conf` directly at your existing Claude Code KB (e.g. `~/.knowledge`). Because Claude Code uses `@<slug>.md` imports in `rules/INDEX.md` while `agy` expands `@[label](path)`, leave `rules/INDEX.md` unchanged for Claude Code and include the individual rule files directly in `~/.gemini/GEMINI.md` (e.g. `@[language](~/.knowledge/rules/language.md)`). `kb-lint` accepts both forms in `rules/INDEX.md`.
 
 A project is "migrated" once you ask `kb-distill` to "migrate this project" (or "attach `<p>`"), which writes an `(omk-project)` marker line into that repo's project memory. Harvest runs only for migrated projects.
 

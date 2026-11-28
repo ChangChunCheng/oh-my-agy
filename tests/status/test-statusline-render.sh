@@ -11,7 +11,7 @@ PLUGIN="$REPO_ROOT/plugins/oh-my-status"
 STATUSLINE="$PLUGIN/scripts/statusline.sh"
 [ -n "$REAL_JQ" ] || { echo "jq is required for these tests" >&2; exit 1; }
 
-strip_ansi() { sed -E 's/\x1b\[[0-9;]*[a-zA-Z]//g'; }
+strip_ansi() { sed -E $'s/\033\\[[0-9;]*[a-zA-Z]//g'; }
 
 NOGIT="$OMA_TEST_ROOT/nogit"; mkdir -p "$NOGIT"
 
@@ -73,6 +73,15 @@ for ln in default fancy mygo pure powerline; do
   assert_contains "$qline" "50%" "$ln shows gemini 5h"
   assert_contains "$qline" "20%" "$ln shows 3p 5h"
 done
+out=$(render "$(base_json)" 'LAYOUT=fancy2')
+qline=$(printf '%s\n' "$out" | grep 'ctx' | head -n 1)
+assert_contains "$qline" "50%" "fancy2 shows primary gemini 5h on ctx line"
+assert_contains "$qline" "10%" "fancy2 shows primary gemini 7d on ctx line"
+assert_contains "$qline" "│  3p 5h "$'\xf3\xb0\xaa\x9f'" 20% 7d "$'\xf3\xb0\x84\xb0'" 5%" "fancy2 shows secondary 3p as 9-step circle meters on ctx line"
+out=$(render "$(jqp '.model={"id":"Claude Sonnet 4","display_name":"Claude Sonnet 4"}')" 'LAYOUT=fancy2')
+qline=$(printf '%s\n' "$out" | grep 'ctx' | head -n 1)
+assert_contains "$qline" "20%" "fancy2 on Claude promotes 3p 5h to bars"
+assert_contains "$qline" "│  gemini 5h "$'\xf3\xb0\xaa\xa1'" 50% 7d "$'\xf3\xb0\xaa\x9e'" 10%" "fancy2 on Claude demotes gemini to 9-step circle meters"
 out=$(render "$(base_json)" 'LAYOUT=minimal')
 assert_contains "$out" "gemini 50%/10%" "minimal gemini pair"
 assert_contains "$out" "3p 20%/5%" "minimal 3p pair"
@@ -168,6 +177,24 @@ assert_contains "$out" "90% (45m)" "minutes"
 assert_contains "$out" "100% (<1m)" "under a minute"
 end_test
 
+start_test "CRLF in jq QUOTA_ROWS (Windows jq.exe): 7d reset countdown still parsed"
+CRLF_BIN="$OMA_TEST_ROOT/crlfjq"; mkdir -p "$CRLF_BIN"
+cat > "$CRLF_BIN/jq" <<EOF
+#!/bin/bash
+cr=\$'\r'
+nl=\$'\n'
+while IFS= read -r -d '' rec; do
+  rec="\${rec//\$cr/}"
+  printf '%s\0' "\${rec//\$nl/\${cr}\${nl}}"
+done < <("$REAL_JQ" "\$@")
+EOF
+chmod +x "$CRLF_BIN/jq"
+printf 'THEME=catppuccin\nLAYOUT=default\nQUOTA_FAMILY=all\n' > "$OMA_TEST_ROOT/crlf.conf"
+out=$(cd "$NOGIT" && printf '%s' "$(jqp '.quota["gemini-5h"]={"remaining_fraction":0.1,"reset_in_seconds":10418}|.quota["gemini-weekly"]={"remaining_fraction":0.05,"reset_in_seconds":597218}')" | PATH="$CRLF_BIN:$PATH" OMA_CONF="$OMA_TEST_ROOT/crlf.conf" bash "$STATUSLINE" 2>/dev/null | strip_ansi)
+assert_contains "$out" "90% (2h53m)" "5h countdown with CRLF jq"
+assert_contains "$out" "95% (6d21h)" "7d countdown with CRLF jq"
+end_test
+
 start_test "MODEL_STRIP_EFFORT strips the effort suffix (before the [1M] tag)"
 out=$(render "$(base_json)" 'MODEL_STRIP_EFFORT=true')
 assert_contains "$out" "Gemini 4 Neon [1M]" "stripped"
@@ -244,11 +271,46 @@ for t in "$PLUGIN"/themes/*.sh; do
     count=$((count + 1))
     plain=$(strip_ansi < "$OMA_TEST_ROOT/tl.out")
     if [ $rc -ne 0 ] || [ -n "$err" ] || [ -z "$plain" ]; then fails=$((fails + 1)); echo "    FAIL: $tn/$ln rc=$rc err=$err" >&2; fi
-    case "$plain" in *"[plan]"*"2 tasks"*) ;; *) fails=$((fails + 1)); echo "    FAIL: $tn/$ln lacks extras: $plain" >&2 ;; esac
+    case "$ln" in
+      fancy2)
+        case "$plain" in *"plan mode on (shift+tab to cycle)"*"2 tasks"*) ;; *) fails=$((fails + 1)); echo "    FAIL: $tn/$ln lacks extras: $plain" >&2 ;; esac ;;
+      *)
+        case "$plain" in *"[plan]"*"2 tasks"*) ;; *) fails=$((fails + 1)); echo "    FAIL: $tn/$ln lacks extras: $plain" >&2 ;; esac ;;
+    esac
   done
 done
 assert_eq "0" "$fails" "failures over $count combinations"
-assert_eq "54" "$count" "9 themes x 6 layouts"
+assert_eq "63" "$count" "9 themes x 7 layouts"
+end_test
+
+start_test "missing quota object exits 0 in every layout (all and auto)"
+for fam in all auto; do
+  for l in "$PLUGIN"/layouts/*.sh; do
+    ln=${l##*/}; ln=${ln%.sh}
+    printf 'THEME=catppuccin\nLAYOUT=%s\nQUOTA_FAMILY=%s\nSHOW_MODE=false\nSHOW_TASKS=false\n' "$ln" "$fam" > "$OMA_TEST_ROOT/noq.conf"
+    rc=0; out=$(cd "$NOGIT" && printf '%s' "$(jqp 'del(.quota)')" | OMA_CONF="$OMA_TEST_ROOT/noq.conf" bash "$STATUSLINE" 2>/dev/null) || rc=$?
+    assert_eq "0" "$rc" "$ln/$fam missing quota exit 0"
+  done
+done
+end_test
+
+start_test "fancy2 layout: mode line below meters with CLI-matched TrueColor codes"
+printf 'THEME=catppuccin\nLAYOUT=fancy2\nQUOTA_FAMILY=auto\n' > "$OMA_TEST_ROOT/fancy2.conf"
+for pair in "auto:229;192;123" "plan:97;175;239" "accept-edits:152;195;121"; do
+  m="${pair%%:*}"; rgb="${pair#*:}"
+  raw=$(render_raw "$(jqp ".cycle_mode=\"$m\"")" "$OMA_TEST_ROOT/fancy2.conf")
+  plain=$(printf '%s\n' "$raw" | strip_ansi)
+  last_line=$(printf '%s\n' "$plain" | tail -n 1)
+  ctx_line=$(printf '%s\n' "$plain" | grep 'ctx' | head -n 1)
+  assert_not_contains "$ctx_line" "mode on" "$m mode not on meters line"
+  assert_contains "$last_line" "$m mode on (shift+tab to cycle)" "$m mode text on bottom line"
+  assert_contains "$last_line" "2 tasks" "$m tasks kept on bottom line"
+  assert_contains "$raw" $'\033'"[38;2;${rgb}m" "$m TrueColor escape"
+done
+printf 'THEME=catppuccin\nLAYOUT=fancy2\nSHOW_MODE=false\nSHOW_TASKS=true\n' > "$OMA_TEST_ROOT/fancy2_nomode.conf"
+out=$(render_raw "$(base_json)" "$OMA_TEST_ROOT/fancy2_nomode.conf" | strip_ansi)
+assert_not_contains "$out" "mode on" "SHOW_MODE=false hides mode line"
+assert_contains "$out" "2 tasks" "tasks still shown when SHOW_MODE=false"
 end_test
 
 start_test "unknown theme/layout fall back to defaults"

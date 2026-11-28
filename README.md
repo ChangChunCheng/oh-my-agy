@@ -26,7 +26,7 @@ This repository ships two plugins for the [Antigravity CLI](https://antigravity.
 
 A themeable statusline for `agy`.
 
-- 9 themes (`catppuccin`, `dracula`, `nord`, `gruvbox`, `tokyonight`, `onedark`, `solarized`, `rosepine`, `mygo`) and 6 layouts (`default`, `minimal`, `powerline`, `pure`, `fancy`, `mygo`), switchable on the fly.
+- 9 themes (`catppuccin`, `dracula`, `nord`, `gruvbox`, `tokyonight`, `onedark`, `solarized`, `rosepine`, `mygo`) and 7 layouts (`default`, `minimal`, `powerline`, `pure`, `fancy`, `fancy2`, `mygo`), switchable on the fly.
 - Model, account, directory, git branch and changes, context bar, and 5h / 7d quota meters.
 - Git information is cached and invalidated as soon as `.git` refs or the index change; directories outside a repository never run `git`.
 
@@ -60,7 +60,19 @@ Install both plugins in one command:
 agy plugin install https://github.com/ChangChunCheng/oh-my-agy
 ```
 
-Check the result with `agy plugin list`.
+Or install only a single plugin using its GitHub subdirectory URL (unlike Claude Code, `agy` does not support custom third-party `@marketplace` registries, so pointing directly to the plugin folder installs just that one):
+
+```
+# oh-my-status only
+agy plugin install https://github.com/ChangChunCheng/oh-my-agy/tree/main/plugins/oh-my-status
+
+# oh-my-knowledge only
+agy plugin install https://github.com/ChangChunCheng/oh-my-agy/tree/main/plugins/oh-my-knowledge
+```
+
+Check the result with `agy plugin list`. If you installed both and want to turn one off later, run `agy plugin disable <name>` or `agy plugin uninstall <name>`.
+
+> **Windows note**: `/status-setup` (`configure.sh`) automatically resolves your Git Bash (`Git\bin\bash.exe`) and absolute script path when writing `statusLine` to `settings.json`. However, `agy` runs plugin `hooks.json` entries using the `bash` on Windows `PATH`; if you also have WSL installed, `C:\Windows\System32\bash.exe` takes precedence over Git Bash and uses WSL's `/home/<user>` instead of your Windows home directory. To run hooks under Git Bash on Windows, add `C:\Program Files\Git\bin` ahead of `System32` in `PATH` or point the installed plugin's `hooks.json` command to `C:\PROGRA~1\Git\bin\bash.exe`.
 
 ## First steps
 
