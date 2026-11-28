@@ -45,6 +45,17 @@ render() {
   ( cd "$NOGIT" && printf '%s' "$json" | OMA_CONF="$conf" bash "$STATUSLINE" 2>/dev/null | strip_ansi )
 }
 render_raw() { local json="$1" conf="$2"; ( cd "$NOGIT" && printf '%s' "$json" | OMA_CONF="$conf" bash "$STATUSLINE" 2>/dev/null ); }
+# render_checked <json> <conf> <label>: run statusline.sh and assert exit 0,
+# empty stderr, and non-empty stripped stdout (returned in REPLY).
+render_checked() {
+  local json="$1" conf="$2" label="$3" err rc=0
+  err=$(cd "$NOGIT" && printf '%s' "$json" | OMA_CONF="$conf" bash "$STATUSLINE" 2>&1 >"$OMA_TEST_ROOT/rc.out") || rc=$?
+  REPLY=$(strip_ansi < "$OMA_TEST_ROOT/rc.out")
+  if [ "$rc" -ne 0 ] || [ -n "$err" ] || [ -z "$REPLY" ]; then
+    echo "    FAIL: $label rc=$rc err=$err" >&2
+    return 1
+  fi
+}
 
 printf 'Running statusline render tests\n\n'
 
@@ -267,15 +278,13 @@ for t in "$PLUGIN"/themes/*.sh; do
   for l in "$PLUGIN"/layouts/*.sh; do
     tn=${t##*/}; tn=${tn%.sh}; ln=${l##*/}; ln=${ln%.sh}
     printf 'THEME=%s\nLAYOUT=%s\nSHOW_COST=true\n' "$tn" "$ln" > "$OMA_TEST_ROOT/tl.conf"
-    err=$(cd "$NOGIT" && printf '%s' "$(base_json)" | OMA_CONF="$OMA_TEST_ROOT/tl.conf" bash "$STATUSLINE" 2>&1 >"$OMA_TEST_ROOT/tl.out"); rc=$?
     count=$((count + 1))
-    plain=$(strip_ansi < "$OMA_TEST_ROOT/tl.out")
-    if [ $rc -ne 0 ] || [ -n "$err" ] || [ -z "$plain" ]; then fails=$((fails + 1)); echo "    FAIL: $tn/$ln rc=$rc err=$err" >&2; fi
+    if ! render_checked "$(base_json)" "$OMA_TEST_ROOT/tl.conf" "$tn/$ln"; then fails=$((fails + 1)); fi
     case "$ln" in
       fancy2)
-        case "$plain" in *"plan mode on (shift+tab to cycle)"*"2 tasks"*) ;; *) fails=$((fails + 1)); echo "    FAIL: $tn/$ln lacks extras: $plain" >&2 ;; esac ;;
+        case "$REPLY" in *"plan mode on (shift+tab to cycle)"*"2 tasks"*) ;; *) fails=$((fails + 1)); echo "    FAIL: $tn/$ln lacks extras: $REPLY" >&2 ;; esac ;;
       *)
-        case "$plain" in *"[plan]"*"2 tasks"*) ;; *) fails=$((fails + 1)); echo "    FAIL: $tn/$ln lacks extras: $plain" >&2 ;; esac ;;
+        case "$REPLY" in *"[plan]"*"2 tasks"*) ;; *) fails=$((fails + 1)); echo "    FAIL: $tn/$ln lacks extras: $REPLY" >&2 ;; esac ;;
     esac
   done
 done
@@ -321,22 +330,22 @@ for l in "$PLUGIN"/layouts/*.sh; do
   ln=${l##*/}; ln=${ln%.sh}
   for mode in empty_obj no_quota auto_mode; do
     case "$mode" in
-      empty_obj) printf 'THEME=catppuccin\nLAYOUT=%s\nQUOTA_FAMILY=all\n' "$ln" > "$OMA_TEST_ROOT/eq.conf"; payload='{}' ;;
-      no_quota)  printf 'THEME=catppuccin\nLAYOUT=%s\nQUOTA_FAMILY=all\n' "$ln" > "$OMA_TEST_ROOT/eq.conf"; payload="$no_quota" ;;
-      auto_mode) printf 'THEME=catppuccin\nLAYOUT=%s\nQUOTA_FAMILY=auto\n' "$ln" > "$OMA_TEST_ROOT/eq.conf"; payload="$full_json" ;;
+      empty_obj) qf=all;  payload='{}' ;;
+      no_quota)  qf=all;  payload="$no_quota" ;;
+      auto_mode) qf=auto; payload="$full_json" ;;
     esac
-    err=$(cd "$NOGIT" && printf '%s' "$payload" | OMA_CONF="$OMA_TEST_ROOT/eq.conf" bash "$STATUSLINE" 2>&1 >"$OMA_TEST_ROOT/eq.out"); rc=$?
-    plain=$(strip_ansi < "$OMA_TEST_ROOT/eq.out")
-    if [ $rc -ne 0 ] || [ -n "$err" ] || [ -z "$plain" ]; then
-      fails=$((fails + 1)); echo "    FAIL: statusline $ln/$mode rc=$rc err=$err" >&2
-    fi
+    printf 'THEME=catppuccin\nLAYOUT=%s\nQUOTA_FAMILY=%s\n' "$ln" "$qf" > "$OMA_TEST_ROOT/eq.conf"
+    if ! render_checked "$payload" "$OMA_TEST_ROOT/eq.conf" "statusline $ln/$mode"; then fails=$((fails + 1)); fi
     # Also verify render() itself returns 0 (independent of statusline.sh's trailing exit 0).
     lrc=0
     (
       cd "$NOGIT" || exit 1
       OMA_TEST_LIB_ONLY=1 OMA_CONF="$OMA_TEST_ROOT/eq.conf" . "$STATUSLINE"
       parse_status_json "$payload"
-      BRANCH="" ACCOUNT="" RATE5_SUFFIX="" RATE7_SUFFIX=""
+      apply_model_ctx_tag
+      split_gi_line ""
+      resolve_account
+      resolve_rate_suffixes
       render >/dev/null
     ) || lrc=$?
     if [ $lrc -ne 0 ]; then
