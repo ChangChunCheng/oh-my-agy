@@ -313,6 +313,40 @@ assert_not_contains "$out" "mode on" "SHOW_MODE=false hides mode line"
 assert_contains "$out" "2 tasks" "tasks still shown when SHOW_MODE=false"
 end_test
 
+start_test "every layout exits 0 when quota row is empty (startup {} / no quota / QUOTA_FAMILY=auto)"
+fails=0
+no_quota=$(jqp 'del(.quota)')
+full_json=$(base_json)
+for l in "$PLUGIN"/layouts/*.sh; do
+  ln=${l##*/}; ln=${ln%.sh}
+  for mode in empty_obj no_quota auto_mode; do
+    case "$mode" in
+      empty_obj) printf 'THEME=catppuccin\nLAYOUT=%s\nQUOTA_FAMILY=all\n' "$ln" > "$OMA_TEST_ROOT/eq.conf"; payload='{}' ;;
+      no_quota)  printf 'THEME=catppuccin\nLAYOUT=%s\nQUOTA_FAMILY=all\n' "$ln" > "$OMA_TEST_ROOT/eq.conf"; payload="$no_quota" ;;
+      auto_mode) printf 'THEME=catppuccin\nLAYOUT=%s\nQUOTA_FAMILY=auto\n' "$ln" > "$OMA_TEST_ROOT/eq.conf"; payload="$full_json" ;;
+    esac
+    err=$(cd "$NOGIT" && printf '%s' "$payload" | OMA_CONF="$OMA_TEST_ROOT/eq.conf" bash "$STATUSLINE" 2>&1 >"$OMA_TEST_ROOT/eq.out"); rc=$?
+    plain=$(strip_ansi < "$OMA_TEST_ROOT/eq.out")
+    if [ $rc -ne 0 ] || [ -n "$err" ] || [ -z "$plain" ]; then
+      fails=$((fails + 1)); echo "    FAIL: statusline $ln/$mode rc=$rc err=$err" >&2
+    fi
+    # Also verify render() itself returns 0 (independent of statusline.sh's trailing exit 0).
+    lrc=0
+    (
+      cd "$NOGIT" || exit 1
+      OMA_TEST_LIB_ONLY=1 OMA_CONF="$OMA_TEST_ROOT/eq.conf" . "$STATUSLINE"
+      parse_status_json "$payload"
+      BRANCH="" ACCOUNT="" RATE5_SUFFIX="" RATE7_SUFFIX=""
+      render >/dev/null
+    ) || lrc=$?
+    if [ $lrc -ne 0 ]; then
+      fails=$((fails + 1)); echo "    FAIL: render() $ln/$mode rc=$lrc" >&2
+    fi
+  done
+done
+assert_eq "0" "$fails" "failures across all layouts with empty quota row"
+end_test
+
 start_test "unknown theme/layout fall back to defaults"
 printf 'THEME=nope\nLAYOUT=nope\n' > "$OMA_TEST_ROOT/bad.conf"
 out=$(render_raw "$(base_json)" "$OMA_TEST_ROOT/bad.conf" | strip_ansi)
